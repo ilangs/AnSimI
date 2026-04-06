@@ -1,18 +1,18 @@
 {
   "version": 2,
   "functions": {
-    "apps/api/analyze.ts":  { "maxDuration": 30 },
-    "apps/api/notify.ts":   { "maxDuration": 15 },
-    "apps/api/report.ts":   { "maxDuration": 30 },
-    "apps/api/payment.ts":  { "maxDuration": 15 },
-    "apps/api/health.ts":   { "maxDuration": 5  }
+    "api/analyze.ts": { "maxDuration": 30 },
+    "api/notify.ts":  { "maxDuration": 15 },
+    "api/report.ts":  { "maxDuration": 30 },
+    "api/payment.ts": { "maxDuration": 15 },
+    "api/health.ts":  { "maxDuration": 5  }
   },
   "routes": [
-    { "src": "/api/analyze",  "dest": "/apps/api/analyze.ts"  },
-    { "src": "/api/notify",   "dest": "/apps/api/notify.ts"   },
-    { "src": "/api/report",   "dest": "/apps/api/report.ts"   },
-    { "src": "/api/payment",  "dest": "/apps/api/payment.ts"  },
-    { "src": "/api/health",   "dest": "/apps/api/health.ts"   }
+    { "src": "/api/analyze",  "dest": "/api/analyze.ts"  },
+    { "src": "/api/notify",   "dest": "/api/notify.ts"   },
+    { "src": "/api/report",   "dest": "/api/report.ts"   },
+    { "src": "/api/payment",  "dest": "/api/payment.ts"  },
+    { "src": "/api/health",   "dest": "/api/health.ts"   }
   ],
   "headers": [
     {

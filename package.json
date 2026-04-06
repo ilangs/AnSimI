@@ -10,5 +10,16 @@
     "mobile": "cd apps/mobile && npx expo start",
     "api:dev": "cd apps/api && vercel dev",
     "db:migrate": "supabase db push"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.21.0",
+    "@supabase/supabase-js": "^2.43.0",
+    "@vercel/node": "^3.0.0",
+    "firebase-admin": "^12.0.0",
+    "openai": "^4.47.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
   }
 }
