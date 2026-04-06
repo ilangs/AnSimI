@@ -1,11 +1,11 @@
 {
   "version": 2,
   "functions": {
-    "apps/api/analyze.ts":  { "runtime": "nodejs20.x", "maxDuration": 30 },
-    "apps/api/notify.ts":   { "runtime": "nodejs20.x", "maxDuration": 15 },
-    "apps/api/report.ts":   { "runtime": "nodejs20.x", "maxDuration": 30 },
-    "apps/api/payment.ts":  { "runtime": "nodejs20.x", "maxDuration": 15 },
-    "apps/api/health.ts":   { "runtime": "nodejs20.x", "maxDuration": 5  }
+    "apps/api/analyze.ts":  { "maxDuration": 30 },
+    "apps/api/notify.ts":   { "maxDuration": 15 },
+    "apps/api/report.ts":   { "maxDuration": 30 },
+    "apps/api/payment.ts":  { "maxDuration": 15 },
+    "apps/api/health.ts":   { "maxDuration": 5  }
   },
   "routes": [
     { "src": "/api/analyze",  "dest": "/apps/api/analyze.ts"  },
