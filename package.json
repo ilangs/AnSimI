@@ -1,0 +1,14 @@
+{
+  "name": "ansimi",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "apps/api"
+  ],
+  "scripts": {
+    "mobile": "cd apps/mobile && npx expo start",
+    "api:dev": "cd apps/api && vercel dev",
+    "db:migrate": "supabase db push"
+  }
+}

@@ -1,0 +1,268 @@
+import { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Colors } from '@/constants/colors';
+import { useAnalyze } from '@/hooks/useAnalyze';
+import AnalyzeResult from '@/components/parent/AnalyzeResult';
+import AnalyzeLoadingAnimation from '@/components/parent/AnalyzeLoadingAnimation';
+
+const EXAMPLE_MESSAGES = [
+  '[금감원] 귀하의 계좌가 범죄에 이용되고 있습니다. 즉시 자산이전이 필요합니다. 010-xxxx-xxxx',
+  '[택배] 고객님 택배가 도착했습니다. 주소 확인: http://bit.ly/xxxxx',
+  '[카드사] 승인 완료: 스타벅스 5,500원 (잔액 128,400원)',
+];
+
+export default function AnalyzeScreen() {
+  const router = useRouter();
+  const [text, setText] = useState('');
+  const { analyzeAsync, result, isLoading, error, reset } = useAnalyze();
+  const inputRef = useRef<TextInput>(null);
+
+  const handleAnalyze = async () => {
+    if (!text.trim()) {
+      Alert.alert('알림', '분석할 문자 내용을 입력해주세요');
+      return;
+    }
+    reset();
+    try {
+      await analyzeAsync(text.trim());
+    } catch (err: any) {
+      // 에러는 error 상태로 자동 관리됨
+    }
+  };
+
+  const handleReset = () => {
+    reset();
+    setText('');
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const handleExample = (msg: string) => {
+    reset();
+    setText(msg);
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* 헤더 */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            accessibilityLabel="뒤로 가기"
+          >
+            <Text style={styles.backText}>← 뒤로</Text>
+          </TouchableOpacity>
+          <Text style={styles.title} accessibilityRole="header">
+            🔍 문자 분석
+          </Text>
+          <Text style={styles.subtitle}>의심스러운 문자를 붙여넣으세요</Text>
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* 아직 분석 전 */}
+          {!result && !isLoading && (
+            <>
+              {/* 입력창 */}
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  value={text}
+                  onChangeText={setText}
+                  placeholder="문자 내용을 여기에 입력하거나 붙여넣으세요"
+                  placeholderTextColor={Colors.textTertiary}
+                  multiline
+                  numberOfLines={6}
+                  textAlignVertical="top"
+                  maxLength={2000}
+                  accessibilityLabel="문자 내용 입력"
+                />
+                <Text style={styles.charCount}>{text.length}/2000</Text>
+              </View>
+
+              {/* 예시 문자 */}
+              <View style={styles.exampleSection}>
+                <Text style={styles.exampleTitle}>예시로 테스트해보세요</Text>
+                {EXAMPLE_MESSAGES.map((msg, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.exampleBtn}
+                    onPress={() => handleExample(msg)}
+                    accessibilityLabel={`예시 ${i + 1} 선택`}
+                  >
+                    <Text style={styles.exampleNum}>예시 {i + 1}</Text>
+                    <Text style={styles.exampleText} numberOfLines={2}>
+                      {msg}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* 로딩 중 */}
+          {isLoading && <AnalyzeLoadingAnimation />}
+
+          {/* 에러 */}
+          {error && !isLoading && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorTitle}>분석에 실패했어요</Text>
+              <Text style={styles.errorDesc}>잠시 후 다시 시도해주세요</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={handleAnalyze}>
+                <Text style={styles.retryBtnText}>다시 분석하기</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 분석 결과 */}
+          {result && !isLoading && (
+            <>
+              <AnalyzeResult result={result} originalText={text} />
+              <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
+                <Text style={styles.resetBtnText}>🔄 새 문자 분석하기</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+
+        {/* 분석 버튼 (결과 없을 때만) */}
+        {!result && !isLoading && (
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.analyzeBtn, !text.trim() && styles.analyzeBtnDisabled]}
+              onPress={handleAnalyze}
+              disabled={!text.trim()}
+              accessibilityLabel="문자 분석 시작"
+              accessibilityRole="button"
+            >
+              <Text style={styles.analyzeBtnText}>🛡️ 안심이에게 분석 맡기기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.white },
+  flex: { flex: 1 },
+  header: { padding: 20, paddingBottom: 12 },
+  backBtn: { marginBottom: 12 },
+  backText: { fontSize: 17, color: Colors.brand, fontWeight: '600' },
+  title: { fontSize: 26, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6 },
+  subtitle: { fontSize: 17, color: Colors.textSecondary },
+  scroll: { flex: 1 },
+  content: { padding: 20, paddingBottom: 40, gap: 20 },
+
+  // 입력창
+  inputWrapper: {
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+    overflow: 'hidden',
+  },
+  input: {
+    padding: 16,
+    fontSize: 18,
+    color: Colors.textPrimary,
+    lineHeight: 28,
+    minHeight: 140,
+  },
+  charCount: {
+    textAlign: 'right',
+    padding: 10,
+    paddingTop: 4,
+    fontSize: 13,
+    color: Colors.textTertiary,
+  },
+
+  // 예시 문자
+  exampleSection: { gap: 10 },
+  exampleTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  exampleBtn: {
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 6,
+  },
+  exampleNum: { fontSize: 12, fontWeight: '700', color: Colors.brand },
+  exampleText: { fontSize: 14, color: Colors.textPrimary, lineHeight: 20 },
+
+  // 에러
+  errorBox: {
+    alignItems: 'center',
+    padding: 32,
+    gap: 12,
+    backgroundColor: Colors.dangerBg,
+    borderRadius: 16,
+  },
+  errorIcon: { fontSize: 48 },
+  errorTitle: { fontSize: 22, fontWeight: '700', color: Colors.danger },
+  errorDesc: { fontSize: 17, color: Colors.textSecondary },
+  retryBtn: {
+    marginTop: 8,
+    backgroundColor: Colors.danger,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  retryBtnText: { color: Colors.white, fontSize: 17, fontWeight: '700' },
+
+  // 하단 버튼
+  footer: { padding: 20, paddingTop: 12 },
+  analyzeBtn: {
+    backgroundColor: Colors.brand,
+    height: 64,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.brand,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  analyzeBtnDisabled: { opacity: 0.4 },
+  analyzeBtnText: { color: Colors.white, fontSize: 20, fontWeight: '800' },
+
+  // 재분석 버튼
+  resetBtn: {
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  resetBtnText: { fontSize: 17, color: Colors.textPrimary, fontWeight: '600' },
+});

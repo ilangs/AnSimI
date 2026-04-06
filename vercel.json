@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "functions": {
+    "apps/api/analyze.ts":  { "runtime": "nodejs20.x", "maxDuration": 30 },
+    "apps/api/notify.ts":   { "runtime": "nodejs20.x", "maxDuration": 15 },
+    "apps/api/report.ts":   { "runtime": "nodejs20.x", "maxDuration": 30 },
+    "apps/api/payment.ts":  { "runtime": "nodejs20.x", "maxDuration": 15 },
+    "apps/api/health.ts":   { "runtime": "nodejs20.x", "maxDuration": 5  }
+  },
+  "routes": [
+    { "src": "/api/analyze",  "dest": "/apps/api/analyze.ts"  },
+    { "src": "/api/notify",   "dest": "/apps/api/notify.ts"   },
+    { "src": "/api/report",   "dest": "/apps/api/report.ts"   },
+    { "src": "/api/payment",  "dest": "/apps/api/payment.ts"  },
+    { "src": "/api/health",   "dest": "/apps/api/health.ts"   }
+  ],
+  "env": {
+    "ANTHROPIC_API_KEY":         "@anthropic-api-key",
+    "SUPABASE_URL":              "@supabase-url",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
+    "FIREBASE_PROJECT_ID":       "@firebase-project-id",
+    "FIREBASE_CLIENT_EMAIL":     "@firebase-client-email",
+    "FIREBASE_PRIVATE_KEY":      "@firebase-private-key",
+    "TOSS_SECRET_KEY":           "@toss-secret-key"
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin",  "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" },
+        { "key": "X-Content-Type-Options",       "value": "nosniff" },
+        { "key": "Cache-Control",                "value": "no-store" },
+        { "key": "X-Frame-Options",              "value": "DENY" },
+        { "key": "Referrer-Policy",              "value": "no-referrer" }
+      ]
+    }
+  ]
+}

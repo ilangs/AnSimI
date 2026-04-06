@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+dist/
+.vercel/
+*.log
+.env
+.env.local
+.env.*.local
+google-services.json
+GoogleService-Info.plist
+google-play-service-account.json
+apps/mobile/expo-env.d.ts
+docs/
+.claude/
