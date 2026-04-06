@@ -1,15 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
-// ANTHROPIC_API_KEY는 서버사이드 환경변수에서만 사용 (클라이언트 노출 금지)
-// ZDR: Zero Data Retention — Anthropic이 API 호출 데이터를 학습/보존하지 않도록 설정
-// 개인정보처리방침 제5조(국외 이전) 및 1.4항 기술 요건 준수
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-  defaultHeaders: {
-    'anthropic-beta': 'zero-data-retention-2024-10',
-  },
+// ─────────────────────────────────────────────────────────────
+// AI 제공자: OpenAI (개발·테스트 단계)
+// 실전 배포 시 아래 블록을 Anthropic으로 교체:
+//   import Anthropic from '@anthropic-ai/sdk';
+//   const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!,
+//     defaultHeaders: { 'anthropic-beta': 'zero-data-retention-2024-10' } });
+//
+// OpenAI 데이터 정책: API 호출 데이터는 기본적으로 학습에 미사용 (2023년 정책)
+// 개인정보처리방침 국외이전 항목: 실전 배포 전 Anthropic → OpenAI로 업데이트 필요
+// ─────────────────────────────────────────────────────────────
+const ai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 const supabase = createClient(
@@ -110,26 +114,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let analysisResult;
 
   try {
-    // 1. Claude API 호출 (최대 2회 재시도) — 원문은 메모리 내에서만 처리
+    // 1. OpenAI API 호출 (최대 2회 재시도) — 원문은 메모리 내에서만 처리
+    // response_format: json_object → JSON 형식 응답 강제 (파싱 안정성 향상)
     for (let attempt = 0; attempt <= 2; attempt++) {
       try {
-        const response = await anthropic.messages.create({
-          model: 'claude-sonnet-4-5',
+        const response = await ai.chat.completions.create({
+          model: 'gpt-4o-mini',   // 테스트: gpt-4o-mini / 실전: gpt-4o
           max_tokens: 500,
-          system: ANALYSIS_SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: smsContent! }],
+          response_format: { type: 'json_object' }, // JSON 강제 → parseAnalysisResponse 안정성 향상
+          messages: [
+            { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
+            { role: 'user',   content: smsContent! },
+          ],
         });
 
-        // ✅ Claude API 호출 완료 즉시 원문 파기 (방침 1.3 ③~⑤단계)
+        // ✅ OpenAI API 호출 완료 즉시 원문 파기 (방침 1.3 ③~⑤단계 — Zero-Storage 유지)
         smsContent = null;
 
-        const rawText = response.content[0].type === 'text' ? response.content[0].text : '';
+        const rawText = response.choices[0].message.content ?? '';
         analysisResult = parseAnalysisResponse(rawText);
         break;
       } catch (err) {
         smsContent = null; // 오류 발생 시에도 즉시 파기
         if (attempt === 2) {
-          console.error('Claude API 오류:', err);
+          console.error('OpenAI API 오류:', err);
           return res.status(503).json({ error: '잠시 후 다시 시도해주세요' });
         }
         await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));

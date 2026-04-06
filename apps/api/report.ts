@@ -1,13 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
+// 실전 배포 시 OpenAI → Anthropic 교체 (analyze.ts와 동일)
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 const AVG_FRAUD_AMOUNT = 3_500_000;
 
@@ -87,17 +88,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let aiInsight = '안심이가 열심히 부모님을 지키고 있어요!';
   try {
     const statsText = `총 ${msgs.length}건 분석, ${totalBlocked}건 차단, 고위험 ${highRiskCount}건, 절약 추정액 ${(savedAmount / 10000).toFixed(0)}만원`;
-    const insightRes = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+    const insightRes = await ai.chat.completions.create({
+      model: 'gpt-4o-mini',
       max_tokens: 100,
       messages: [{
         role: 'user',
         content: `다음 주간 보이스피싱 차단 통계를 보고, 가족을 위한 따뜻하고 안심되는 인사이트를 한 문장(40자 이내)으로 작성해주세요. 마크다운 없이 한 문장만:\n${statsText}`,
       }],
     });
-    if (insightRes.content[0].type === 'text') {
-      aiInsight = insightRes.content[0].text.slice(0, 80);
-    }
+    aiInsight = (insightRes.choices[0].message.content ?? aiInsight).slice(0, 80);
   } catch (err) {
     console.error('인사이트 생성 오류:', err);
   }
