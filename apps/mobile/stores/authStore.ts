@@ -77,19 +77,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signUp: async (email, password, role, name) => {
     set({ isLoading: true });
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      // role·name을 메타데이터로 전달 → DB 트리거(handle_new_user)가 users 테이블에 자동 생성
+      // (RLS 우회: SECURITY DEFINER 트리거가 서버사이드에서 직접 insert)
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { role, name } },
+      });
       if (error) throw error;
       if (!data.user) throw new Error('회원가입에 실패했습니다');
 
-      // users 테이블에 프로필 저장
-      const { error: profileError } = await supabase.from('users').insert({
-        id: data.user.id,
-        email,
-        role,
-        name,
-      });
-      if (profileError) throw profileError;
-
+      // 트리거가 users 행을 생성할 시간 확보 후 초기화
+      await new Promise((r) => setTimeout(r, 500));
       await get().initialize();
     } finally {
       set({ isLoading: false });

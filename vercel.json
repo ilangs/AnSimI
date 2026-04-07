@@ -8,6 +8,7 @@
     "api/health.ts":  { "maxDuration": 5  }
   },
   "routes": [
+    { "src": "/privacy",      "dest": "/public/privacy.html" },
     { "src": "/api/analyze",  "dest": "/api/analyze.ts"  },
     { "src": "/api/notify",   "dest": "/api/notify.ts"   },
     { "src": "/api/report",   "dest": "/api/report.ts"   },

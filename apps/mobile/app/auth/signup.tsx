@@ -18,7 +18,7 @@ import { Colors } from '@/constants/colors';
 import { UserRole } from '@/types';
 
 // 개인정보처리방침 공개 URL (앱 출시 후 실제 URL로 교체)
-const PRIVACY_POLICY_URL = 'https://ansimi.vercel.app/privacy';
+const PRIVACY_POLICY_URL = 'https://an-sim-i.vercel.app/privacy';
 
 export default function SignupScreen() {
   const [email, setEmail] = useState('');

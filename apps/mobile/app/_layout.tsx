@@ -3,10 +3,18 @@ import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as SplashScreen from 'expo-splash-screen';
+import { enableScreens } from 'react-native-screens';
 import { useAuthStore } from '@/stores/authStore';
+
+// Expo Go에서 네이티브 스크린 애니메이션 충돌 방지
+enableScreens(false);
 import { registerForPushNotifications } from '@/services/notification';
 import OfflineBanner, { useNetworkStatus } from '@/components/ui/OfflineBanner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+
+// 스플래시 화면 자동 숨김 방지 (hideAsync() 호출 전까지 유지)
+SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +39,13 @@ function AuthGate() {
   useEffect(() => {
     initialize();
   }, []);
+
+  // 인증 초기화 완료 시 스플래시 숨김
+  useEffect(() => {
+    if (isInitialized) {
+      SplashScreen.hideAsync();
+    }
+  }, [isInitialized]);
 
   // 인증 상태 변화에 따른 라우팅
   useEffect(() => {
@@ -77,17 +92,11 @@ export default function RootLayout() {
           <View style={{ flex: 1 }}>
             <AuthGate />
             <NetworkLayer />
-            <Stack screenOptions={{ headerShown: false }}>
+            <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
               <Stack.Screen name="(parent)" />
               <Stack.Screen name="(child)" />
-              <Stack.Screen
-                name="onboarding"
-                options={{ animation: 'fade' }}
-              />
-              <Stack.Screen
-                name="auth"
-                options={{ animation: 'fade' }}
-              />
+              <Stack.Screen name="onboarding" />
+              <Stack.Screen name="auth" />
             </Stack>
           </View>
         </QueryClientProvider>

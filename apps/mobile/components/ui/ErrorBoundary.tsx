@@ -20,6 +20,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false };
 
   static getDerivedStateFromError(error: Error): State {
+    // react-native-screens 내부 애니메이션 충돌 오류는 무시 (복구 가능)
+    if (error?.message?.includes('useNativeDriver')) {
+      return { hasError: false };
+    }
     return { hasError: true, error };
   }
 

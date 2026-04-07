@@ -16,7 +16,9 @@
     "@supabase/supabase-js": "^2.43.0",
     "@vercel/node": "^3.0.0",
     "firebase-admin": "^12.0.0",
-    "openai": "^4.47.0"
+    "openai": "^4.47.0",
+    "react-native-worklets": "npm:react-native-worklets-core@^1.6.3",
+    "react-native-worklets-core": "^1.6.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
