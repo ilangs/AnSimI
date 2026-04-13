@@ -55,10 +55,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: '유효하지 않은 alertType' });
   }
 
-  // 1. 가족 구성원 조회 → 자녀 Expo 푸시 토큰 수집
-  const { data: members, error: memberErr } = await supabase
+  // 1-1. 가족 구성원 user_id 목록 조회
+  const { data: memberRows, error: memberErr } = await supabase
     .from('family_members')
-    .select('user_id, users(id, fcm_token, role)')
+    .select('user_id')
     .eq('family_id', familyId);
 
   if (memberErr) {
@@ -66,11 +66,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: '가족 정보 조회 실패' });
   }
 
-  const children = (members ?? [])
-    .map((m: any) => m.users)
-    .filter((u: any) => u?.role === 'child' && u?.fcm_token);
+  const memberIds = (memberRows ?? []).map((m: any) => m.user_id as string).filter(Boolean);
 
-  const tokens: string[] = children.map((u: any) => u.fcm_token as string);
+  // 1-2. 자녀 역할이면서 fcm_token 보유한 사용자만 조회
+  let children: { id: string; fcm_token: string }[] = [];
+  if (memberIds.length > 0) {
+    const { data: childUsers } = await supabase
+      .from('users')
+      .select('id, fcm_token')
+      .in('id', memberIds)
+      .eq('role', 'child')
+      .not('fcm_token', 'is', null);
+    children = (childUsers ?? []) as { id: string; fcm_token: string }[];
+  }
+
+  const tokens: string[] = children.map((u) => u.fcm_token).filter(Boolean);
 
   // 2. alerts 테이블 저장
   const senderId = sosUserId ?? (members?.[0] as any)?.user_id;
