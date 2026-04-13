@@ -164,9 +164,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('DB 저장 오류:', JSON.stringify(dbError));
     }
     // 3. 위험 감지 시 자녀에게 Expo Push 알림 직접 발송
-    // _debug: 임시 진단 필드 (확인 후 삭제 예정)
-    const _debug: Record<string, unknown> = { score: analysisResult.score, familyId };
-
     if (analysisResult.score >= 51) {
       const alertType = analysisResult.score >= 76 ? 'danger' : 'warning';
       const alertMsg = alertType === 'danger'
@@ -175,35 +172,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       try {
         // 3-1. 가족 구성원 user_id 목록 조회
-        const { data: memberRows, error: memberError } = await supabase
+        const { data: memberRows } = await supabase
           .from('family_members')
           .select('user_id')
           .eq('family_id', familyId);
 
-        _debug.memberError = memberError ? JSON.stringify(memberError) : null;
         const memberIds = (memberRows ?? []).map((m: any) => m.user_id as string).filter(Boolean);
-        _debug.memberIds = memberIds;
 
         let childTokens: string[] = [];
 
         if (memberIds.length > 0) {
           // 3-2. 자녀 역할이면서 fcm_token 보유한 사용자만 조회
-          const { data: childUsers, error: childError } = await supabase
+          const { data: childUsers } = await supabase
             .from('users')
-            .select('id, fcm_token, role')
+            .select('fcm_token')
             .in('id', memberIds)
             .eq('role', 'child')
             .not('fcm_token', 'is', null);
-
-          _debug.childError = childError ? JSON.stringify(childError) : null;
-          _debug.childUsers = (childUsers ?? []).map((u: any) => ({ id: u.id, role: u.role, hasToken: !!u.fcm_token }));
 
           childTokens = (childUsers ?? [])
             .map((u: any) => u.fcm_token as string)
             .filter(Boolean);
         }
-
-        _debug.childTokenCount = childTokens.length;
 
         if (childTokens.length > 0) {
           const messages = childTokens.map((token) => ({
@@ -217,14 +207,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             badge: 1,
           }));
 
-          const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+          await fetch('https://exp.host/--/api/v2/push/send', {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify(messages),
           });
-          const pushBody = await pushRes.json().catch(() => null);
-          _debug.pushStatus = pushRes.status;
-          _debug.pushBody = pushBody;
         }
 
         // alerts 테이블 저장
@@ -234,15 +221,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           message_id: savedMessage?.id ?? null,
           type: alertType,
         });
-      } catch (err: any) {
-        _debug.pushError = err?.message ?? String(err);
+      } catch (err) {
+        console.error('알림 발송 오류:', err);
       }
     }
 
     return res.status(200).json({
       ...analysisResult,
       messageId: savedMessage?.id ?? null,
-      _debug,
     });
   } finally {
     // ✅ finally 보장: 예외 경로 포함 원문 변수 이중 파기

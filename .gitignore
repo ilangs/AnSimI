@@ -9,6 +9,8 @@ dist/
 google-services.json
 GoogleService-Info.plist
 google-play-service-account.json
+firebase-adminsdk.json
+*-adminsdk-*.json
 apps/mobile/expo-env.d.ts
 docs/
 .claude/
