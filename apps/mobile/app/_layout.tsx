@@ -8,6 +8,7 @@ import * as Linking from 'expo-linking';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/services/supabase';
 import { registerForPushNotifications } from '@/services/notification';
+import { useShareIntent } from '@/hooks/useShareIntent';
 import OfflineBanner, { useNetworkStatus } from '@/components/ui/OfflineBanner';
 
 // react-native-screens 4.x Expo Go 애니메이션 경고 무시
@@ -32,6 +33,7 @@ const queryClient = new QueryClient({
 
 function AuthGate() {
   const { user, family, isInitialized, initialize, updateFcmToken } = useAuthStore();
+  useShareIntent();
   const segments = useSegments();
   const router = useRouter();
 

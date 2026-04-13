@@ -166,9 +166,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 3. 위험 감지 시 자녀에게 Expo Push 알림 직접 발송
     if (analysisResult.score >= 51) {
       const alertType = analysisResult.score >= 76 ? 'danger' : 'warning';
+
+      // 문자 미리보기: 앞 40자만 발췌 (자녀가 상황을 즉시 파악할 수 있도록)
+      // ※ 알림 페이로드에만 포함, DB 저장 안 함 (Zero-Storage 원칙 준수)
+      const preview = smsContent
+        ? `"${smsContent.trim().slice(0, 40)}${smsContent.trim().length > 40 ? '...' : ''}"`
+        : '';
+
       const alertMsg = alertType === 'danger'
-        ? { title: '🚨 위험한 문자가 도착했어요!', body: '부모님 폰에 보이스피싱 문자가 왔어요. 즉시 확인해주세요.' }
-        : { title: '⚠️ 의심스러운 문자가 도착했어요', body: '부모님 폰에 주의가 필요한 문자가 왔어요.' };
+        ? { title: '🚨 위험한 문자가 도착했어요!', body: preview ? `${preview} — 즉시 확인해주세요!` : '부모님 폰에 보이스피싱 문자가 왔어요. 즉시 확인해주세요.' }
+        : { title: '⚠️ 의심스러운 문자가 도착했어요', body: preview ? `${preview} — 주의가 필요해요.` : '부모님 폰에 주의가 필요한 문자가 왔어요.' };
 
       try {
         // 3-1. 가족 구성원 user_id 목록 조회

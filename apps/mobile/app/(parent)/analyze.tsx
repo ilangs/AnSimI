@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { useAnalyze } from '@/hooks/useAnalyze';
 import AnalyzeResult from '@/components/parent/AnalyzeResult';
@@ -25,9 +25,19 @@ const EXAMPLE_MESSAGES = [
 
 export default function AnalyzeScreen() {
   const router = useRouter();
+  const { sharedText } = useLocalSearchParams<{ sharedText?: string }>();
   const [text, setText] = useState('');
   const { analyzeAsync, result, isLoading, error, reset } = useAnalyze();
   const inputRef = useRef<TextInput>(null);
+
+  // Share Intent로 전달된 텍스트 자동 입력
+  useEffect(() => {
+    if (sharedText) {
+      const decoded = decodeURIComponent(sharedText);
+      setText(decoded);
+      reset();
+    }
+  }, [sharedText]);
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
