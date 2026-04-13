@@ -14,14 +14,23 @@ export function useNetworkStatus() {
     let timer: ReturnType<typeof setInterval>;
 
     const checkConnection = async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       try {
+        // Supabase URL로 연결 확인 (Vercel 배포 상태와 무관)
         const res = await fetch(
-          `${process.env.EXPO_PUBLIC_API_URL}/health`,
-          { method: 'HEAD', signal: AbortSignal.timeout(4000) }
+          `${process.env.EXPO_PUBLIC_SUPABASE_URL}/rest/v1/`,
+          {
+            method: 'HEAD',
+            headers: { apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '' },
+            signal: controller.signal,
+          }
         );
-        setIsOnline(res.ok);
+        setIsOnline(res.status < 500);
       } catch {
         setIsOnline(false);
+      } finally {
+        clearTimeout(timeout);
       }
     };
 

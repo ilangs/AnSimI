@@ -15,7 +15,13 @@ export async function analyzeMessage(
       });
 
       if (!res.ok) {
-        throw new Error(`서버 오류: ${res.status}`);
+        // 서버가 보낸 오류 메시지를 그대로 사용 (진단 목적)
+        let serverMsg = `서버 오류: ${res.status}`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) serverMsg = errBody.error;
+        } catch {}
+        throw new Error(serverMsg);
       }
 
       const data = await res.json();

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
   ActivityIndicator,
   Alert,
@@ -36,9 +37,14 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
     >
-      <View style={styles.inner}>
+      <ScrollView
+        contentContainerStyle={styles.inner}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
         {/* 로고 */}
         <View style={styles.logoArea}>
           <Text style={styles.logo}>🛡️</Text>
@@ -85,17 +91,29 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.signupLink}
+            style={styles.forgotLink}
+            onPress={() => router.push('/auth/forgot-password')}
+            accessibilityLabel="비밀번호 찾기"
+          >
+            <Text style={styles.forgotText}>비밀번호 찾기</Text>
+          </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>또는</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity
+            style={styles.signupButton}
             onPress={() => router.push('/auth/signup')}
             accessibilityLabel="회원가입 페이지로 이동"
+            accessibilityRole="button"
           >
-            <Text style={styles.signupText}>
-              처음 사용하시나요?{' '}
-              <Text style={styles.signupHighlight}>회원가입</Text>
-            </Text>
+            <Text style={styles.signupButtonText}>회원가입</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -106,30 +124,31 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   inner: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 48,
   },
   logoArea: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
   logo: {
-    fontSize: 64,
-    marginBottom: 12,
+    fontSize: 56,
+    marginBottom: 10,
   },
   appName: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '700',
     color: Colors.brand,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   slogan: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
   },
   form: {
-    gap: 16,
+    width: '100%',
   },
   input: {
     height: 56,
@@ -140,6 +159,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textPrimary,
     backgroundColor: Colors.background,
+    marginBottom: 12,
   },
   button: {
     height: 56,
@@ -147,7 +167,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 4,
+    marginBottom: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -157,16 +178,43 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  signupLink: {
+  forgotLink: {
+    width: '100%',
+    height: 44,
     alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'center',
   },
-  signupText: {
-    fontSize: 15,
+  forgotText: {
+    fontSize: 14,
     color: Colors.textSecondary,
+    textAlign: 'center',
   },
-  signupHighlight: {
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.border,
+  },
+  dividerText: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    marginHorizontal: 12,
+  },
+  signupButton: {
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signupButtonText: {
     color: Colors.brand,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
 });

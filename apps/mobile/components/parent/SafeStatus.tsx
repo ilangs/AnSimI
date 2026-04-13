@@ -5,10 +5,9 @@ import { Colors } from '@/constants/colors';
 
 export default function SafeStatus() {
   const alerts = useAlertStore((s) => s.alerts);
+  // scale만 애니메이션 (useNativeDriver: true — 충돌 없음)
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
 
-  // 오늘 미확인 위험 알림 여부
   const today = new Date().toDateString();
   const hasActiveDanger = alerts.some((a) => {
     const isToday = new Date(a.created_at).toDateString() === today;
@@ -16,16 +15,13 @@ export default function SafeStatus() {
   });
 
   const statusColor = hasActiveDanger ? Colors.danger : Colors.safe;
-  const statusText = hasActiveDanger ? '위험을 감지했어요!' : '오늘도 안전해요';
-  const statusIcon = hasActiveDanger ? '🚨' : '✅';
-  const statusDesc = hasActiveDanger
-    ? '자녀에게 알림을 보냈어요'
-    : '안심이가 잘 지키고 있어요';
+  const statusText  = hasActiveDanger ? '위험을 감지했어요!' : '오늘도 안전해요';
+  const statusIcon  = hasActiveDanger ? '🚨' : '✅';
+  const statusDesc  = hasActiveDanger ? '자녀에게 알림을 보냈어요' : '안심이가 잘 지키고 있어요';
 
-  // 위험 시 맥박 애니메이션
   useEffect(() => {
     if (hasActiveDanger) {
-      const pulse = Animated.loop(
+      const anim = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.08,
@@ -41,36 +37,12 @@ export default function SafeStatus() {
           }),
         ])
       );
-      const glow = Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: false,
-          }),
-          Animated.timing(glowAnim, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: false,
-          }),
-        ])
-      );
-      pulse.start();
-      glow.start();
-      return () => {
-        pulse.stop();
-        glow.stop();
-      };
+      anim.start();
+      return () => anim.stop();
     } else {
       pulseAnim.setValue(1);
-      glowAnim.setValue(0);
     }
   }, [hasActiveDanger]);
-
-  const borderWidth = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [5, 8],
-  });
 
   return (
     <View
@@ -78,15 +50,13 @@ export default function SafeStatus() {
       accessibilityLabel={`현재 상태: ${statusText}. ${statusDesc}`}
       accessibilityRole="text"
     >
-      {/* 원형 인디케이터 */}
       <Animated.View
         style={[
           styles.circle,
           {
             borderColor: statusColor,
-            borderWidth,
-            transform: [{ scale: pulseAnim }],
             shadowColor: statusColor,
+            transform: [{ scale: pulseAnim }],
           },
         ]}
       >
@@ -95,10 +65,7 @@ export default function SafeStatus() {
         </View>
       </Animated.View>
 
-      {/* 상태 텍스트 */}
-      <Text style={[styles.statusText, { color: statusColor }]}>
-        {statusText}
-      </Text>
+      <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
       <Text style={styles.descText}>{statusDesc}</Text>
     </View>
   );
@@ -110,6 +77,7 @@ const styles = StyleSheet.create({
     width: 210,
     height: 210,
     borderRadius: 105,
+    borderWidth: 5,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 0 },
@@ -126,16 +94,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { fontSize: 76 },
-  statusText: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  descText: {
-    fontSize: 18,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
+  icon:       { fontSize: 76 },
+  statusText: { fontSize: 28, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
+  descText:   { fontSize: 18, color: Colors.textSecondary, textAlign: 'center' },
 });

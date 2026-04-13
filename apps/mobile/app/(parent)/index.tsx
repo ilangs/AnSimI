@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
 import { formatToday } from '@/utils/formatter';
 import SafeStatus from '@/components/parent/SafeStatus';
 import BlockedCount from '@/components/parent/BlockedCount';
-import SosButton from '@/components/parent/SosButton';
 
 export default function ParentHomeScreen() {
   const { user, family } = useAuthStore();
@@ -67,16 +67,8 @@ export default function ParentHomeScreen() {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
-
-      {/* SOS 버튼 (항상 하단 고정) */}
-      <View style={styles.sosWrapper}>
-        <SosButton
-          familyId={family?.id ?? ''}
-          senderId={user?.id ?? ''}
-        />
-      </View>
     </SafeAreaView>
   );
 }
@@ -145,11 +137,4 @@ const styles = StyleSheet.create({
   },
   codeBoxBtnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
 
-  // SOS
-  sosWrapper: {
-    position: 'absolute',
-    bottom: 90,
-    left: 20,
-    right: 20,
-  },
 });

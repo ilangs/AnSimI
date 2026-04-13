@@ -114,37 +114,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let analysisResult;
 
   try {
-    // 1. OpenAI API 호출 (최대 2회 재시도) — 원문은 메모리 내에서만 처리
-    for (let attempt = 0; attempt <= 2; attempt++) {
-      try {
-        const response = await ai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          max_tokens: 500,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
-            { role: 'user',   content: smsContent! },
-          ],
-        });
+    // 1. OpenAI gpt-4o-mini 호출 — 원문은 메모리 내에서만 처리
+    try {
+      const response = await ai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 500,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
+          { role: 'user',   content: smsContent! },
+        ],
+      });
 
-        // ✅ OpenAI API 호출 완료 즉시 원문 파기
-        smsContent = null;
+      // ✅ OpenAI API 호출 완료 즉시 원문 파기 (방침 1.3 ③~⑤단계)
+      smsContent = null;
 
-        const rawText = response.choices[0].message.content ?? '';
-        analysisResult = parseAnalysisResponse(rawText);
-        break;
-      } catch (err) {
-        smsContent = null;
-        if (attempt === 2) {
-          console.error('OpenAI API 오류:', err);
-          return res.status(503).json({ error: '잠시 후 다시 시도해주세요' });
-        }
-        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-      }
+      const rawText = response.choices[0].message.content ?? '';
+      analysisResult = parseAnalysisResponse(rawText);
+    } catch (err: unknown) {
+      smsContent = null;
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error('OpenAI API 오류:', errMsg);
+      return res.status(503).json({
+        error: `분석 서버 오류: ${errMsg.slice(0, 120)}`,
+      });
     }
 
     if (!analysisResult) {
-      return res.status(503).json({ error: '분석에 실패했습니다' });
+      return res.status(503).json({ error: '분석 결과를 생성하지 못했습니다' });
     }
 
     // 2. Supabase에 '분석 결과만' 저장 — content는 반드시 null (원문 비저장)
@@ -164,26 +161,88 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single();
 
     if (dbError) {
-      console.error('DB 저장 오류:', dbError);
+      console.error('DB 저장 오류:', JSON.stringify(dbError));
     }
+    // 3. 위험 감지 시 자녀에게 Expo Push 알림 직접 발송
+    // _debug: 임시 진단 필드 (확인 후 삭제 예정)
+    const _debug: Record<string, unknown> = { score: analysisResult.score, familyId };
 
-    // 3. 위험 감지 시 자녀 알림 발송 (비동기)
-    if (analysisResult.score >= 51 && savedMessage) {
+    if (analysisResult.score >= 51) {
       const alertType = analysisResult.score >= 76 ? 'danger' : 'warning';
-      fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          familyId,
-          alertType,
-          messageId: savedMessage.id,
-        }),
-      }).catch((err) => console.error('알림 발송 오류:', err));
+      const alertMsg = alertType === 'danger'
+        ? { title: '🚨 위험한 문자가 도착했어요!', body: '부모님 폰에 보이스피싱 문자가 왔어요. 즉시 확인해주세요.' }
+        : { title: '⚠️ 의심스러운 문자가 도착했어요', body: '부모님 폰에 주의가 필요한 문자가 왔어요.' };
+
+      try {
+        // 3-1. 가족 구성원 user_id 목록 조회
+        const { data: memberRows, error: memberError } = await supabase
+          .from('family_members')
+          .select('user_id')
+          .eq('family_id', familyId);
+
+        _debug.memberError = memberError ? JSON.stringify(memberError) : null;
+        const memberIds = (memberRows ?? []).map((m: any) => m.user_id as string).filter(Boolean);
+        _debug.memberIds = memberIds;
+
+        let childTokens: string[] = [];
+
+        if (memberIds.length > 0) {
+          // 3-2. 자녀 역할이면서 fcm_token 보유한 사용자만 조회
+          const { data: childUsers, error: childError } = await supabase
+            .from('users')
+            .select('id, fcm_token, role')
+            .in('id', memberIds)
+            .eq('role', 'child')
+            .not('fcm_token', 'is', null);
+
+          _debug.childError = childError ? JSON.stringify(childError) : null;
+          _debug.childUsers = (childUsers ?? []).map((u: any) => ({ id: u.id, role: u.role, hasToken: !!u.fcm_token }));
+
+          childTokens = (childUsers ?? [])
+            .map((u: any) => u.fcm_token as string)
+            .filter(Boolean);
+        }
+
+        _debug.childTokenCount = childTokens.length;
+
+        if (childTokens.length > 0) {
+          const messages = childTokens.map((token) => ({
+            to: token,
+            sound: 'default',
+            title: alertMsg.title,
+            body: alertMsg.body,
+            data: { type: alertType, familyId, messageId: savedMessage?.id ?? '' },
+            priority: 'high',
+            channelId: 'ansimi-alerts',
+            badge: 1,
+          }));
+
+          const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(messages),
+          });
+          const pushBody = await pushRes.json().catch(() => null);
+          _debug.pushStatus = pushRes.status;
+          _debug.pushBody = pushBody;
+        }
+
+        // alerts 테이블 저장
+        await supabase.from('alerts').insert({
+          family_id: familyId,
+          sender_id: userId,
+          message_id: savedMessage?.id ?? null,
+          type: alertType,
+        });
+      } catch (err: any) {
+        _debug.pushError = err?.message ?? String(err);
+      }
     }
 
     return res.status(200).json({
       ...analysisResult,
       messageId: savedMessage?.id ?? null,
+      _debug,
     });
   } finally {
     // ✅ finally 보장: 예외 경로 포함 원문 변수 이중 파기

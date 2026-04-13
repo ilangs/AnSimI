@@ -30,7 +30,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
 
   initialize: async () => {
-    set({ isLoading: true });
+    // isInitialized를 false로 리셋 → AuthGate가 로드 완료 전까지 라우팅하지 않음
+    // (signIn 후 재호출 시 user set → family null 상태에서 잘못 라우팅되는 버그 방지)
+    set({ isLoading: true, isInitialized: false });
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -44,15 +46,23 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         if (userData) {
           set({ user: userData as User });
 
-          // 가족 정보 로드
-          const { data: memberData } = await supabase
+          // 가족 정보 로드 — SECURITY DEFINER RPC 대신 직접 2단계 조회
+          const { data: memberRow } = await supabase
             .from('family_members')
-            .select('family_id, families(*)')
+            .select('family_id')
             .eq('user_id', session.user.id)
-            .single();
+            .maybeSingle();
 
-          if (memberData?.families) {
-            set({ family: memberData.families as unknown as Family });
+          if (memberRow?.family_id) {
+            const { data: familyData } = await supabase
+              .from('families')
+              .select('*')
+              .eq('id', memberRow.family_id)
+              .maybeSingle();
+
+            if (familyData) {
+              set({ family: familyData as Family });
+            }
           }
         }
       }
@@ -97,7 +107,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ user: null, family: null });
+    // isInitialized: true 유지 → AuthGate가 user=null을 감지해 로그인 화면으로 이동
+    set({ user: null, family: null, isInitialized: true });
   },
 
   updateFcmToken: async (token) => {

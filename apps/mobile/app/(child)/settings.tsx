@@ -2,7 +2,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Switch,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
@@ -248,7 +248,7 @@ export default function ChildSettingsScreen() {
         <Section title="개인정보 및 법적 고지">
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => Linking.openURL('https://ansimi.vercel.app/privacy')}
+            onPress={() => Linking.openURL('https://an-sim-i.vercel.app/privacy')}
             accessibilityLabel="개인정보처리방침 보기"
             accessibilityRole="link"
           >

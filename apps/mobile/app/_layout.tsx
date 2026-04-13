@@ -1,106 +1,128 @@
 import { useEffect } from 'react';
-import { View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { View, LogBox } from 'react-native';
+import { Slot, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
-import { enableScreens } from 'react-native-screens';
+import * as Linking from 'expo-linking';
 import { useAuthStore } from '@/stores/authStore';
-
-// Expo Go에서 네이티브 스크린 애니메이션 충돌 방지
-enableScreens(false);
+import { supabase } from '@/services/supabase';
 import { registerForPushNotifications } from '@/services/notification';
 import OfflineBanner, { useNetworkStatus } from '@/components/ui/OfflineBanner';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
-// 스플래시 화면 자동 숨김 방지 (hideAsync() 호출 전까지 유지)
+// react-native-screens 4.x Expo Go 애니메이션 경고 무시
+LogBox.ignoreLogs([
+  'Attempting to run JS driven animation',
+  'useNativeDriver',
+  'expo-notifications',
+]);
+
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,   // 5분
+      staleTime: 5 * 60 * 1000,
       retry: 2,
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     },
-    mutations: {
-      retry: 1,
-    },
+    mutations: { retry: 1 },
   },
 });
 
-// 인증 게이트: 로그인 상태에 따라 화면 라우팅
 function AuthGate() {
-  const { user, isInitialized, initialize, updateFcmToken } = useAuthStore();
+  const { user, family, isInitialized, initialize, updateFcmToken } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
-  // 앱 시작 시 세션 복원
-  useEffect(() => {
-    initialize();
-  }, []);
+  useEffect(() => { initialize(); }, []);
 
-  // 인증 초기화 완료 시 스플래시 숨김
   useEffect(() => {
-    if (isInitialized) {
-      SplashScreen.hideAsync();
-    }
+    if (isInitialized) SplashScreen.hideAsync().catch(() => {});
   }, [isInitialized]);
 
-  // 인증 상태 변화에 따른 라우팅
   useEffect(() => {
     if (!isInitialized) return;
-
     const inAuthGroup = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
-
     if (!user) {
-      // 미로그인 → 로그인 화면
       if (!inAuthGroup) router.replace('/auth/login');
     } else {
-      // 로그인 완료 → 인증 화면에서 나가기
       if (inAuthGroup) {
-        router.replace('/onboarding/role');
+        // 이미 가족 연결 완료된 경우 → 역할별 메인 화면으로 바로 이동 (role/connect 재진입 방지)
+        if (family) {
+          router.replace(user.role === 'parent' ? '/(parent)/' : '/(child)/');
+        } else {
+          router.replace('/onboarding/role');
+        }
+      } else if (!family && !inOnboarding) {
+        // 가족 미연결 상태면 온보딩 connect로 이동
+        router.replace('/onboarding/connect');
       }
     }
-  }, [user, isInitialized, segments]);
+  }, [user, family, isInitialized, segments]);
 
-  // FCM 토큰 등록
   useEffect(() => {
     if (!user) return;
     registerForPushNotifications()
-      .then((token) => {
-        if (token) updateFcmToken(token);
-      })
-      .catch((err) => console.error('FCM 등록 실패:', err));
+      .then((token) => { if (token) updateFcmToken(token); })
+      .catch(() => {});
   }, [user?.id]);
 
   return null;
 }
 
-// 네트워크 상태 + 배너
 function NetworkLayer() {
   const isOnline = useNetworkStatus();
   return <OfflineBanner isOnline={isOnline} />;
 }
 
+// 비밀번호 재설정 딥링크 처리 (ansimi://auth/reset-password#access_token=...)
+function DeepLinkHandler() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const handleUrl = async (url: string) => {
+      if (!url.includes('type=recovery')) return;
+      const fragment = url.split('#')[1] ?? '';
+      const params: Record<string, string> = {};
+      fragment.split('&').forEach((p) => {
+        const [k, v] = p.split('=');
+        if (k && v) params[decodeURIComponent(k)] = decodeURIComponent(v);
+      });
+      if (params.access_token) {
+        try {
+          await supabase.auth.setSession({
+            access_token: params.access_token,
+            refresh_token: params.refresh_token ?? '',
+          });
+        } catch {}
+        router.replace('/auth/reset-password');
+      }
+    };
+
+    // 앱이 닫혀 있다가 딥링크로 열렸을 때
+    Linking.getInitialURL().then((url) => { if (url) handleUrl(url); });
+    // 앱이 열려 있는 상태에서 딥링크가 들어올 때
+    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => sub.remove();
+  }, []);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <View style={{ flex: 1 }}>
-            <AuthGate />
-            <NetworkLayer />
-            <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
-              <Stack.Screen name="(parent)" />
-              <Stack.Screen name="(child)" />
-              <Stack.Screen name="onboarding" />
-              <Stack.Screen name="auth" />
-            </Stack>
-          </View>
-        </QueryClientProvider>
-      </ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <View style={{ flex: 1 }}>
+          <AuthGate />
+          <NetworkLayer />
+          <DeepLinkHandler />
+          {/* Slot: RNSScreenStack을 사용하지 않아 애니메이션 충돌 없음 */}
+          <Slot />
+        </View>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

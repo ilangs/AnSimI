@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
@@ -89,9 +89,14 @@ export default function ConnectScreen() {
     return (
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={0}
       >
-        <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.inner}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <Text style={styles.emoji}>🔑</Text>
           <Text style={styles.title}>자녀가 알려준{'\n'}코드를 입력해요</Text>
           <Text style={styles.subtitle}>
@@ -127,9 +132,14 @@ export default function ConnectScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={0}
     >
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.inner}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* 코드 생성 완료 상태 */}
         {createdFamily ? (
           <>
@@ -227,6 +237,7 @@ export default function ConnectScreen() {
 }
 
 // 6자리 코드 입력 컴포넌트
+
 function CodeInput({
   value,
   onChange,
@@ -237,7 +248,12 @@ function CodeInput({
   inputRef: React.RefObject<TextInput>;
 }) {
   return (
-    <View style={codeStyles.wrapper}>
+    <TouchableOpacity
+      style={codeStyles.wrapper}
+      onPress={() => inputRef.current?.focus()}
+      activeOpacity={1}
+      accessibilityLabel="코드 입력 칸"
+    >
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <View
           key={i}
@@ -254,11 +270,10 @@ function CodeInput({
         maxLength={6}
         autoCapitalize="characters"
         keyboardType="default"
-        autoFocus
         caretHidden
         accessibilityLabel="6자리 연결 코드 입력"
       />
-    </View>
+    </TouchableOpacity>
   );
 }
 

@@ -16,13 +16,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
@@ -94,18 +94,18 @@ export default function ParentConsentScreen() {
         {/* 안심이가 하는 일 */}
         <View style={styles.infoBox}>
           <Text style={styles.infoTitle}>✅ 안심이가 하는 일</Text>
-          <Text style={styles.infoItem}>1. 받으시는 문자를 AI가{'\n'}   사기 문자인지 확인합니다.</Text>
-          <Text style={styles.infoItem}>2. 위험한 문자가 오면{'\n'}   자녀에게 즉시 알려드립니다.</Text>
-          <Text style={styles.infoItem}>3. SOS 버튼으로{'\n'}   자녀를 즉시 부를 수 있습니다.</Text>
+          <InfoItem num="1." text="받으시는 문자를 AI가 사기 문자인지 확인합니다." />
+          <InfoItem num="2." text="위험한 문자가 오면 자녀에게 즉시 알려드립니다." />
+          <InfoItem num="3." text="SOS 버튼으로 자녀를 즉시 부를 수 있습니다." />
         </View>
 
         {/* 꼭 알아두세요 */}
         <View style={styles.noticeBox}>
           <Text style={styles.noticeTitle}>⚠️ 꼭 알아두세요</Text>
-          <Text style={styles.noticeItem}>● AI가 귀하의 문자를 분석합니다.</Text>
-          <Text style={styles.noticeItem}>● 분석 후 문자 내용은 즉시 삭제되며{'\n'}   저장되지 않습니다.</Text>
-          <Text style={styles.noticeItem}>● 자녀에게는 위험 점수와 요약만{'\n'}   전달됩니다. (문자 내용은 공유 안 됨)</Text>
-          <Text style={styles.noticeItem}>● 분석을 위해 문자가 미국 AI 서버로{'\n'}   전송됩니다. (분석 즉시 삭제됩니다)</Text>
+          <NoticeItem text="AI가 귀하의 문자를 분석합니다." />
+          <NoticeItem text="분석 후 문자 내용은 즉시 삭제되며 저장되지 않습니다." />
+          <NoticeItem text="자녀에게는 위험 점수와 요약만 전달됩니다. (문자 내용은 공유 안 됨)" />
+          <NoticeItem text="분석을 위해 문자가 미국 AI 서버로 전송됩니다. (분석 즉시 삭제됩니다)" />
         </View>
 
         {/* 동의 항목 — 4개 체크박스 */}
@@ -165,6 +165,26 @@ export default function ParentConsentScreen() {
         </Text>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/* ── 번호 아이템 (안심이가 하는 일) ── */
+function InfoItem({ num, text }: { num: string; text: string }) {
+  return (
+    <View style={styles.rowItem}>
+      <Text style={[styles.infoItem, styles.rowNum]}>{num}</Text>
+      <Text style={[styles.infoItem, { flex: 1 }]}>{text}</Text>
+    </View>
+  );
+}
+
+/* ── 불릿 아이템 (꼭 알아두세요) ── */
+function NoticeItem({ text }: { text: string }) {
+  return (
+    <View style={styles.rowItem}>
+      <Text style={[styles.noticeItem, styles.rowBullet]}>●</Text>
+      <Text style={[styles.noticeItem, { flex: 1 }]}>{text}</Text>
+    </View>
   );
 }
 
@@ -239,10 +259,22 @@ const styles = StyleSheet.create({
     color: Colors.brand,
     lineHeight: 36,
   },
+  rowItem: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  rowNum: {
+    width: 28,
+    flexShrink: 0,
+  },
+  rowBullet: {
+    width: 24,
+    flexShrink: 0,
+  },
   infoItem: {
-    fontSize: 20,         // 방침 요건: 24px 이상 — 본문도 20px로 설정
+    fontSize: 17,
     color: Colors.textPrimary,
-    lineHeight: 36,       // 1.8
+    lineHeight: 28,
     fontWeight: '500',
   },
 
@@ -262,9 +294,9 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
   noticeItem: {
-    fontSize: 20,
+    fontSize: 17,
     color: Colors.textPrimary,
-    lineHeight: 36,
+    lineHeight: 28,
     fontWeight: '500',
   },
 

@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlertStore } from '@/stores/alertStore';
 
 function TabIcon({ emoji, color }: { emoji: string; color: string }) {
@@ -9,6 +10,7 @@ function TabIcon({ emoji, color }: { emoji: string; color: string }) {
 
 export default function ChildLayout() {
   const unreadCount = useAlertStore((s) => s.unreadCount);
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -17,8 +19,8 @@ export default function ChildLayout() {
         tabBarActiveTintColor: Colors.brand,
         tabBarInactiveTintColor: Colors.textTertiary,
         tabBarStyle: {
-          height: 64,
-          paddingBottom: 10,
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: 6,
           borderTopWidth: 1,
           borderTopColor: Colors.border,

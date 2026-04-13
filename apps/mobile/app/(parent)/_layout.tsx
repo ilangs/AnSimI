@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { Colors } from '@/constants/colors';
 import { useParentRealtime } from '@/hooks/useParentRealtime';
@@ -20,6 +21,7 @@ function TabIcon({ emoji, color }: { emoji: string; color: string }) {
 export default function ParentLayout() {
   const router = useRouter();
   const unreadCount = useAlertStore((s) => s.unreadCount);
+  const insets = useSafeAreaInsets();
 
   // Supabase Realtime 구독 (새 위험 문자 자동 감지)
   useParentRealtime();
@@ -44,8 +46,8 @@ export default function ParentLayout() {
         tabBarActiveTintColor: Colors.brand,
         tabBarInactiveTintColor: Colors.textTertiary,
         tabBarStyle: {
-          height: 78,
-          paddingBottom: 14,
+          height: 70 + insets.bottom,
+          paddingBottom: insets.bottom + 8,
           paddingTop: 8,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
@@ -82,8 +84,18 @@ export default function ParentLayout() {
           tabBarAccessibilityLabel: 'SOS 긴급 알림 보내기',
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: '설정',
+          tabBarIcon: ({ color }) => <TabIcon emoji="⚙️" color={color} />,
+          tabBarAccessibilityLabel: '설정 화면으로 이동',
+        }}
+      />
       {/* 분석 화면은 alert 탭에서 push로 이동 (탭바 미표시) */}
       <Tabs.Screen name="analyze" options={{ href: null }} />
+      {/* 이의신청 화면은 analyze에서 push로 이동 (탭바 미표시) */}
+      <Tabs.Screen name="objection" options={{ href: null }} />
     </Tabs>
   );
 }

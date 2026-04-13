@@ -8,6 +8,7 @@ import {
   Vibration,
   Animated,
   Easing,
+  View,
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { sendNotification } from '@/services/notification';
@@ -24,10 +25,10 @@ export default function SosButton({
   large = false,
 }: SosButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  // scale만 애니메이션 (useNativeDriver: true — 충돌 없음)
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0.6)).current;
 
-  // 대기 상태 맥박 애니메이션
+  // 대기 상태 맥박 애니메이션 (scale only, native driver)
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -45,26 +46,8 @@ export default function SosButton({
         }),
       ])
     );
-    const glow = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0.5,
-          duration: 1000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
     pulse.start();
-    glow.start();
-    return () => {
-      pulse.stop();
-      glow.stop();
-    };
+    return () => pulse.stop();
   }, []);
 
   const handleSos = async () => {
@@ -117,56 +100,49 @@ export default function SosButton({
     );
   };
 
-  const shadowOpacity = glowAnim.interpolate({
-    inputRange: [0.5, 1],
-    outputRange: [0.3, 0.6],
-  });
-
   return (
-    <Animated.View
-      style={[
-        styles.wrapper,
-        {
-          transform: [{ scale: pulseAnim }],
-          shadowOpacity,
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={[
-          styles.button,
-          large && styles.buttonLarge,
-          isLoading && styles.buttonLoading,
-        ]}
-        onPress={handleSos}
-        disabled={isLoading}
-        activeOpacity={0.75}
-        accessibilityLabel="SOS 긴급 알림 보내기. 자녀 모두에게 즉시 긴급 알림이 발송됩니다"
-        accessibilityRole="button"
-        accessibilityHint="두 번 탭하면 자녀에게 긴급 알림이 발송됩니다"
-      >
-        {isLoading ? (
-          <ActivityIndicator color={Colors.white} size="large" />
-        ) : (
-          <>
-            <Text style={[styles.icon, large && styles.iconLarge]}>🆘</Text>
-            <Text style={[styles.text, large && styles.textLarge]}>
-              SOS 긴급 알림
-            </Text>
-            <Text style={[styles.subText, large && styles.subTextLarge]}>
-              자녀에게 즉시 알림
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </Animated.View>
+    // 단일 Animated.View (scale만, useNativeDriver: true)
+    // 그림자는 정적 스타일로 처리 — 애니메이션 드라이버 충돌 없음
+    <View style={styles.wrapper}>
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            large && styles.buttonLarge,
+            isLoading && styles.buttonLoading,
+          ]}
+          onPress={handleSos}
+          disabled={isLoading}
+          activeOpacity={0.75}
+          accessibilityLabel="SOS 긴급 알림 보내기. 자녀 모두에게 즉시 긴급 알림이 발송됩니다"
+          accessibilityRole="button"
+          accessibilityHint="두 번 탭하면 자녀에게 긴급 알림이 발송됩니다"
+        >
+          {isLoading ? (
+            <ActivityIndicator color={Colors.white} size="large" />
+          ) : (
+            <>
+              <Text style={[styles.icon, large && styles.iconLarge]}>🆘</Text>
+              <Text style={[styles.text, large && styles.textLarge]}>
+                SOS 긴급 알림
+              </Text>
+              <Text style={[styles.subText, large && styles.subTextLarge]}>
+                자녀에게 즉시 알림
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
+    // 정적 그림자 (애니메이션 없음)
     shadowColor: Colors.danger,
     shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 10,
     borderRadius: 22,

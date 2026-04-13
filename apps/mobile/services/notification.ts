@@ -5,10 +5,11 @@ import { NotifyRequest } from '@/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL!;
 
-// 알림 기본 설정
+// 알림 기본 설정 (Expo SDK 54: shouldShowAlert → shouldShowBanner + shouldShowList)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,   // iOS 14+ 배너
+    shouldShowList: true,     // 알림 센터 표시
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -43,10 +44,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
     });
   }
 
-  const token = await Notifications.getExpoPushTokenAsync({
-    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-  });
+  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
+  if (!projectId) {
+    console.warn('EXPO_PUBLIC_PROJECT_ID가 설정되지 않아 FCM 토큰을 가져올 수 없습니다');
+    return null;
+  }
 
+  const token = await Notifications.getExpoPushTokenAsync({ projectId });
   return token.data;
 }
 

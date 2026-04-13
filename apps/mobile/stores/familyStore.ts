@@ -38,7 +38,7 @@ export const useFamilyStore = create<FamilyStore>((set) => ({
 
       const { data: membersData } = await supabase
         .from('family_members')
-        .select('*, users(*)')
+        .select('*, user:users(*)')   // 'user:users(*)' → FamilyMember.user 필드에 매핑
         .eq('family_id', familyId);
 
       set({
@@ -55,38 +55,31 @@ export const useFamilyStore = create<FamilyStore>((set) => ({
   createFamily: async (userId, name = '우리 가족') => {
     const code = generateSixDigitCode();
 
-    const { data: family, error } = await supabase
-      .from('families')
-      .insert({ name, code })
-      .select()
-      .single();
+    // SECURITY DEFINER 함수로 RLS 우회 (families + family_members 동시 생성)
+    const { data, error } = await supabase.rpc('create_family_with_member', {
+      p_name: name,
+      p_code: code,
+      p_user_id: userId,
+    });
 
     if (error) throw error;
 
-    await supabase.from('family_members').insert({
-      family_id: family.id,
-      user_id: userId,
-    });
-
-    set({ family: family as Family });
-    return family as Family;
+    const family = data as Family;
+    set({ family });
+    return family;
   },
 
   joinFamily: async (code, userId) => {
-    const { data: family, error } = await supabase
-      .from('families')
-      .select('*')
-      .eq('code', code.toUpperCase())
-      .single();
-
-    if (error || !family) throw new Error('유효하지 않은 코드입니다');
-
-    await supabase.from('family_members').insert({
-      family_id: family.id,
-      user_id: userId,
+    // SECURITY DEFINER 함수로 RLS 우회 (비구성원도 코드로 가족 조회 가능)
+    const { data, error } = await supabase.rpc('join_family_by_code', {
+      p_code: code.toUpperCase(),
+      p_user_id: userId,
     });
 
-    set({ family: family as Family });
-    return family as Family;
+    if (error) throw new Error(error.message || '유효하지 않은 코드입니다');
+
+    const family = data as Family;
+    set({ family });
+    return family;
   },
 }));

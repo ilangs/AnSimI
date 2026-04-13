@@ -128,7 +128,7 @@ export default function AnalyzeScreen() {
             <View style={styles.errorBox}>
               <Text style={styles.errorIcon}>⚠️</Text>
               <Text style={styles.errorTitle}>분석에 실패했어요</Text>
-              <Text style={styles.errorDesc}>잠시 후 다시 시도해주세요</Text>
+              <Text style={styles.errorDesc}>{error.message ?? '잠시 후 다시 시도해주세요'}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={handleAnalyze}>
                 <Text style={styles.retryBtnText}>다시 분석하기</Text>
               </TouchableOpacity>
