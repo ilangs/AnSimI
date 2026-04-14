@@ -55,15 +55,8 @@ module.exports = {
         },
       ],
       'expo-web-browser',
-      // Share Intent: 다른 앱(삼성 메시지 등)에서 텍스트 공유 시 안심이로 받기
-      [
-        'react-native-receive-sharing-intent',
-        {
-          androidIntentFilters: ['text/plain'],
-          iosActivationRules: { NSExtensionActivationSupportsText: true },
-          URIScheme: 'ansimi',
-        },
-      ],
+      // Share Intent: 커스텀 플러그인 (삼성 메시지 등 → 공유 → 안심이)
+      './plugins/withShareIntent',
     ],
     experiments: {
       typedRoutes: true,

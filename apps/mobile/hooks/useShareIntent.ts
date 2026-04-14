@@ -1,62 +1,78 @@
-import { useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { useEffect } from 'react';
+import { Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Android Share Intent 처리 훅
- * 삼성 메시지 앱 등에서 [공유] → 안심이 선택 시 분석 화면으로 이동하며 텍스트 자동 입력
  *
- * 동작 조건: 부모(parent) 계정으로 로그인된 상태에서만 활성화
+ * 흐름:
+ * ShareReceiverActivity(Kotlin) → ansimi://share?text=<인코딩>
+ *   → Linking 이벤트 → 분석 화면으로 이동 + 텍스트 자동 입력
+ *
+ * 타이밍 처리:
+ * - 앱이 닫혀있을 때(콜드 스타트): getInitialURL → pendingSharedText 저장
+ *   → 사용자 로딩 완료 후 처리
+ * - 앱이 열려있을 때(포그라운드): addEventListener → 즉시 처리
  */
+
+// 앱 초기화 전 Share Intent가 도착하는 경우를 위한 임시 저장소
+let pendingSharedText: string | null = null;
+
+function parseShareUrl(url: string): string | null {
+  try {
+    if (!url.includes('ansimi://share')) return null;
+    const qs = url.split('?')[1] ?? '';
+    const params = new URLSearchParams(qs);
+    const raw = params.get('text') ?? '';
+    return decodeURIComponent(raw) || null;
+  } catch {
+    return null;
+  }
+}
+
 export function useShareIntent() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const appState = useRef(AppState.currentState);
 
-  useEffect(() => {
-    if (!user || user.role !== 'parent') return;
-
-    let ReceiveSharingIntent: any;
-    try {
-      ReceiveSharingIntent = require('react-native-receive-sharing-intent').default;
-    } catch {
-      // 패키지 미설치 환경(Expo Go 등)에서는 무시
-      return;
-    }
-
-    const handleSharedFiles = (files: any[]) => {
-      const sharedText = files?.[0]?.text ?? files?.[0]?.weblink ?? '';
-      if (!sharedText) return;
-
-      // 분석 화면으로 이동하며 공유 텍스트 전달
-      router.push({
-        pathname: '/(parent)/analyze',
-        params: { sharedText: encodeURIComponent(sharedText) },
-      });
-
-      // 처리 후 초기화
-      ReceiveSharingIntent.clearReceivedFiles();
-    };
-
-    const handleError = (err: any) => {
-      console.warn('Share Intent 오류:', err);
-    };
-
-    // 앱이 Share Intent로 실행된 경우 (콜드 스타트 & 포그라운드 복귀)
-    ReceiveSharingIntent.getReceivedFiles(handleSharedFiles, handleError, 'ansimi');
-
-    // 앱이 백그라운드에서 포그라운드로 복귀할 때도 처리
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        ReceiveSharingIntent.getReceivedFiles(handleSharedFiles, handleError, 'ansimi');
-      }
-      appState.current = nextState;
+  const navigateToAnalyze = (text: string) => {
+    if (!text.trim()) return;
+    router.push({
+      pathname: '/(parent)/analyze',
+      params: { sharedText: encodeURIComponent(text) },
     });
+  };
 
-    return () => {
-      subscription.remove();
-      ReceiveSharingIntent.clearReceivedFiles();
-    };
+  // 콜드 스타트: 앱이 Share Intent로 실행된 경우
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => {
+      if (!url) return;
+      const text = parseShareUrl(url);
+      if (text) pendingSharedText = text; // 사용자 로딩 후 처리
+    });
+  }, []);
+
+  // 포그라운드: 앱이 열린 상태에서 Share Intent가 들어온 경우
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      const text = parseShareUrl(url);
+      if (!text) return;
+
+      if (user?.role === 'parent') {
+        navigateToAnalyze(text);
+      } else {
+        pendingSharedText = text;
+      }
+    });
+    return () => sub.remove();
+  }, [user?.id]);
+
+  // 사용자 로딩 완료 후 pendingSharedText 처리 (콜드 스타트 케이스)
+  useEffect(() => {
+    if (user?.role === 'parent' && pendingSharedText) {
+      const text = pendingSharedText;
+      pendingSharedText = null;
+      navigateToAnalyze(text);
+    }
   }, [user?.id]);
 }
