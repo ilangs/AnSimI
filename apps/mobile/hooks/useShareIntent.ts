@@ -37,8 +37,9 @@ export function useShareIntent() {
 
   const navigateToAnalyze = (text: string) => {
     if (!text.trim()) return;
+    const pathname = user?.role === 'child' ? '/(child)/analyze' : '/(parent)/analyze';
     router.push({
-      pathname: '/(parent)/analyze',
+      pathname: pathname as any,
       params: { sharedText: encodeURIComponent(text) },
     });
   };
@@ -58,7 +59,7 @@ export function useShareIntent() {
       const text = parseShareUrl(url);
       if (!text) return;
 
-      if (user?.role === 'parent') {
+      if (user?.role === 'parent' || user?.role === 'child') {
         navigateToAnalyze(text);
       } else {
         pendingSharedText = text;
@@ -69,7 +70,7 @@ export function useShareIntent() {
 
   // 사용자 로딩 완료 후 pendingSharedText 처리 (콜드 스타트 케이스)
   useEffect(() => {
-    if (user?.role === 'parent' && pendingSharedText) {
+    if ((user?.role === 'parent' || user?.role === 'child') && pendingSharedText) {
       const text = pendingSharedText;
       pendingSharedText = null;
       navigateToAnalyze(text);

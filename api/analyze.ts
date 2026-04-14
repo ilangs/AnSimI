@@ -127,6 +127,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       // ✅ OpenAI API 호출 완료 즉시 원문 파기 (방침 1.3 ③~⑤단계)
+      // 알림용 미리보기(40자)만 추출 후 원문 파기 — DB 미저장, 알림 페이로드에만 사용
+      const messagePreview = smsContent
+        ? smsContent.trim().slice(0, 40) + (smsContent.trim().length > 40 ? '...' : '')
+        : '';
       smsContent = null;
 
       const rawText = response.choices[0].message.content ?? '';
@@ -163,47 +167,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (dbError) {
       console.error('DB 저장 오류:', JSON.stringify(dbError));
     }
-    // 3. 위험 감지 시 자녀에게 Expo Push 알림 직접 발송
+    // 3. 위험 감지 시 가족에게 Expo Push 알림 발송
+    // - 부모가 분석 → 자녀에게 알림
+    // - 자녀가 분석 → 부모에게 알림
     if (analysisResult.score >= 51) {
       const alertType = analysisResult.score >= 76 ? 'danger' : 'warning';
 
-      // 문자 미리보기: 앞 40자만 발췌 (자녀가 상황을 즉시 파악할 수 있도록)
-      // ※ 알림 페이로드에만 포함, DB 저장 안 함 (Zero-Storage 원칙 준수)
-      const preview = smsContent
-        ? `"${smsContent.trim().slice(0, 40)}${smsContent.trim().length > 40 ? '...' : ''}"`
-        : '';
-
       const alertMsg = alertType === 'danger'
-        ? { title: '🚨 위험한 문자가 도착했어요!', body: preview ? `${preview} — 즉시 확인해주세요!` : '부모님 폰에 보이스피싱 문자가 왔어요. 즉시 확인해주세요.' }
-        : { title: '⚠️ 의심스러운 문자가 도착했어요', body: preview ? `${preview} — 주의가 필요해요.` : '부모님 폰에 주의가 필요한 문자가 왔어요.' };
+        ? {
+            title: '🚨 위험한 문자가 도착했어요!',
+            body: messagePreview
+              ? `"${messagePreview}" — 즉시 확인해주세요!`
+              : '보이스피싱 문자가 감지됐어요. 즉시 확인해주세요.',
+          }
+        : {
+            title: '⚠️ 의심스러운 문자가 도착했어요',
+            body: messagePreview
+              ? `"${messagePreview}" — 주의가 필요해요.`
+              : '주의가 필요한 문자가 감지됐어요.',
+          };
 
       try {
-        // 3-1. 가족 구성원 user_id 목록 조회
+        // 3-1. 분석한 사용자의 역할 조회 (부모/자녀에 따라 알림 대상 결정)
+        const { data: senderData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', userId)
+          .single();
+        const senderRole = senderData?.role ?? 'parent';
+
+        // 3-2. 가족 구성원 user_id 목록 조회
         const { data: memberRows } = await supabase
           .from('family_members')
           .select('user_id')
           .eq('family_id', familyId);
 
-        const memberIds = (memberRows ?? []).map((m: any) => m.user_id as string).filter(Boolean);
+        const memberIds = (memberRows ?? [])
+          .map((m: any) => m.user_id as string)
+          .filter((id) => id && id !== userId); // 본인 제외
 
-        let childTokens: string[] = [];
+        let targetTokens: string[] = [];
 
         if (memberIds.length > 0) {
-          // 3-2. 자녀 역할이면서 fcm_token 보유한 사용자만 조회
-          const { data: childUsers } = await supabase
+          // 3-3. 알림 대상: 부모가 분석 → 자녀, 자녀가 분석 → 부모
+          const targetRole = senderRole === 'parent' ? 'child' : 'parent';
+
+          const { data: targetUsers } = await supabase
             .from('users')
             .select('fcm_token')
             .in('id', memberIds)
-            .eq('role', 'child')
+            .eq('role', targetRole)
             .not('fcm_token', 'is', null);
 
-          childTokens = (childUsers ?? [])
+          targetTokens = (targetUsers ?? [])
             .map((u: any) => u.fcm_token as string)
             .filter(Boolean);
         }
 
-        if (childTokens.length > 0) {
-          const messages = childTokens.map((token) => ({
+        if (targetTokens.length > 0) {
+          const messages = targetTokens.map((token) => ({
             to: token,
             sound: 'default',
             title: alertMsg.title,

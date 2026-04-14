@@ -41,6 +41,13 @@ export default function ChildLayout() {
         }}
       />
       <Tabs.Screen
+        name="analyze"
+        options={{
+          title: '문자 분석',
+          tabBarIcon: ({ color }) => <TabIcon emoji="🔍" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="report"
         options={{
           title: '주간 리포트',
