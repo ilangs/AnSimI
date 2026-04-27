@@ -114,6 +114,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let analysisResult;
 
   try {
+    // 알림용 미리보기(40자) — OpenAI 호출 전 추출, DB 미저장, 알림 페이로드에만 사용
+    let messagePreview = smsContent
+      ? smsContent.trim().slice(0, 40) + (smsContent.trim().length > 40 ? '...' : '')
+      : '';
+
     // 1. OpenAI gpt-4o-mini 호출 — 원문은 메모리 내에서만 처리
     try {
       const response = await ai.chat.completions.create({
@@ -127,10 +132,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       // ✅ OpenAI API 호출 완료 즉시 원문 파기 (방침 1.3 ③~⑤단계)
-      // 알림용 미리보기(40자)만 추출 후 원문 파기 — DB 미저장, 알림 페이로드에만 사용
-      const messagePreview = smsContent
-        ? smsContent.trim().slice(0, 40) + (smsContent.trim().length > 40 ? '...' : '')
-        : '';
       smsContent = null;
 
       const rawText = response.choices[0].message.content ?? '';

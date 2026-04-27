@@ -57,6 +57,8 @@ module.exports = {
       'expo-web-browser',
       // Share Intent: 커스텀 플러그인 (삼성 메시지 등 → 공유 → 안심이)
       './plugins/withShareIntent',
+      // 자동 SMS 분석: NotificationListenerService + NativeModule
+      './plugins/withNotificationListener',
     ],
     experiments: {
       typedRoutes: true,

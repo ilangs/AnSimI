@@ -6,13 +6,35 @@ import {
   ScrollView,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
 import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
+import { useAutoAnalyze } from '@/hooks/useAutoAnalyze';
 
 export default function ParentSettingsScreen() {
   const { user, family, signOut } = useAuthStore();
+  const { isEnabled, checkPermission, openSettings } = useAutoAnalyze();
+
+  useEffect(() => { checkPermission(); }, []);
+
+  const handleAutoAnalyzeToggle = async () => {
+    if (isEnabled) {
+      Alert.alert(
+        '자동 분석 비활성화',
+        '안드로이드 설정 > 알림 접근 허용 앱에서 안심이를 비활성화하세요.',
+        [{ text: '설정 열기', onPress: openSettings }, { text: '취소', style: 'cancel' }]
+      );
+    } else {
+      Alert.alert(
+        '자동 문자 분석 활성화',
+        '문자 알림이 오면 자동으로 위험 분석하고 결과를 알려드려요.\n\n다음 화면에서 안심이를 활성화해주세요.',
+        [{ text: '설정 열기', onPress: openSettings }, { text: '나중에', style: 'cancel' }]
+      );
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert('로그아웃', '정말 로그아웃 하시겠어요?', [
@@ -42,6 +64,23 @@ export default function ParentSettingsScreen() {
           <InfoRow label="가족 이름" value={family?.name ?? '-'} />
           <InfoRow label="연결 코드" value={family?.code ?? '---'} />
         </Section>
+
+        {/* 자동 문자 분석 (Android 전용) */}
+        {Platform.OS === 'android' && (
+          <Section title="자동 문자 분석">
+            <TouchableOpacity style={styles.autoRow} onPress={handleAutoAnalyzeToggle}>
+              <View style={styles.autoLeft}>
+                <Text style={styles.autoTitle}>📡 문자 자동 분석</Text>
+                <Text style={styles.autoDesc}>
+                  문자 수신 시 자동으로 위험도 분석 후 알림
+                </Text>
+              </View>
+              <View style={[styles.autoStatus, isEnabled ? styles.autoOn : styles.autoOff]}>
+                <Text style={styles.autoStatusText}>{isEnabled ? '활성' : '비활성'}</Text>
+              </View>
+            </TouchableOpacity>
+          </Section>
+        )}
 
         {/* 개인정보 */}
         <Section title="개인정보 및 법적 고지">
@@ -162,6 +201,24 @@ const styles = StyleSheet.create({
 
   signOutBtn: { padding: 16, alignItems: 'center' },
   signOutText: { fontSize: 16, color: Colors.danger, fontWeight: '600' },
+
+  autoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  autoLeft: { flex: 1, gap: 3 },
+  autoTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  autoDesc: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
+  autoStatus: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  autoOn: { backgroundColor: Colors.brandLight },
+  autoOff: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
+  autoStatusText: { fontSize: 13, fontWeight: '700', color: Colors.brand },
 
   version: {
     textAlign: 'center',

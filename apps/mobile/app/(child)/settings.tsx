@@ -9,15 +9,17 @@ import {
   Share,
   ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
 import { useFamilyStore } from '@/stores/familyStore';
 import { supabase } from '@/services/supabase';
 import { startSubscription, cancelSubscription, SUBSCRIPTION_PRICE } from '@/services/payment';
+import { useAutoAnalyze } from '@/hooks/useAutoAnalyze';
 
 export default function ChildSettingsScreen() {
   const router = useRouter();
@@ -28,6 +30,25 @@ export default function ChildSettingsScreen() {
   const [dangerNotify, setDangerNotify] = useState(true);
   const [warningNotify, setWarningNotify] = useState(true);
   const [sosNotify, setSosNotify] = useState(true);
+
+  const { isEnabled, checkPermission, openSettings } = useAutoAnalyze();
+  useEffect(() => { checkPermission(); }, []);
+
+  const handleAutoAnalyzeToggle = async () => {
+    if (isEnabled) {
+      Alert.alert(
+        '자동 분석 비활성화',
+        '안드로이드 설정 > 알림 접근 허용 앱에서 안심이를 비활성화하세요.',
+        [{ text: '설정 열기', onPress: openSettings }, { text: '취소', style: 'cancel' }]
+      );
+    } else {
+      Alert.alert(
+        '자동 문자 분석 활성화',
+        '문자 알림이 오면 자동으로 위험 분석하고 부모님께 알림을 드려요.\n\n다음 화면에서 안심이를 활성화해주세요.',
+        [{ text: '설정 열기', onPress: openSettings }, { text: '나중에', style: 'cancel' }]
+      );
+    }
+  };
 
   const parents = members.filter((m) => m.user?.role === 'parent');
 
@@ -184,6 +205,23 @@ export default function ChildSettingsScreen() {
             <Text style={styles.addFamilyBtnText}>+ 가족 추가하기</Text>
           </TouchableOpacity>
         </Section>
+
+        {/* ── 자동 문자 분석 (Android 전용) ── */}
+        {Platform.OS === 'android' && (
+          <Section title="자동 문자 분석">
+            <TouchableOpacity style={styles.autoRow} onPress={handleAutoAnalyzeToggle}>
+              <View style={styles.autoLeft}>
+                <Text style={styles.autoTitle}>📡 문자 자동 분석</Text>
+                <Text style={styles.autoDesc}>
+                  문자 수신 시 자동 위험 분석 + 부모님 자동 알림
+                </Text>
+              </View>
+              <View style={[styles.autoStatus, isEnabled ? styles.autoOn : styles.autoOff]}>
+                <Text style={styles.autoStatusText}>{isEnabled ? '활성' : '비활성'}</Text>
+              </View>
+            </TouchableOpacity>
+          </Section>
+        )}
 
         {/* ── 알림 설정 ── */}
         <Section title="알림 설정">
@@ -447,6 +485,21 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   subscribeBtnText: { color: Colors.white, fontSize: 17, fontWeight: '800' },
+
+  // 자동 분석
+  autoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  autoLeft: { flex: 1, gap: 3 },
+  autoTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  autoDesc: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
+  autoStatus: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
+  autoOn: { backgroundColor: Colors.brandLight },
+  autoOff: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
+  autoStatusText: { fontSize: 13, fontWeight: '700', color: Colors.brand },
 
   // 구독 해지
   cancelSubBtn: { padding: 16, alignItems: 'center' },
