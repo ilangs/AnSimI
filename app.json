@@ -1,5 +1,61 @@
 {
   "expo": {
+    "name": "안심이",
+    "slug": "ansimi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon-1024.png",
+    "scheme": "ansimi",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/icon-1024.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A1A2E"
+    },
+    "ios": {
+      "bundleIdentifier": "com.ansimi.app",
+      "buildNumber": "1",
+      "icon": "./assets/images/icon-1024.png",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "위험 문자 감지 시 알림을 받기 위해 필요합니다.",
+        "NSCameraUsageDescription": "프로필 사진 설정에 필요합니다."
+      }
+    },
+    "android": {
+      "package": "com.ansimi.app",
+      "versionCode": 1,
+      "icon": "./assets/images/icon-192.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon-512.png",
+        "backgroundColor": "#1A1A2E"
+      },
+      "permissions": [
+        "RECEIVE_SMS",
+        "READ_SMS",
+        "NOTIFICATIONS",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/icon-192.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon-192.png",
+          "color": "#1D9E75",
+          "sounds": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
     "extra": {
       "eas": {
         "projectId": "a63237c0-8f28-48c0-9437-d95e1d14034a"
