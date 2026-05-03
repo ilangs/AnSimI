@@ -7,7 +7,7 @@ module.exports = {
     slug: 'ansimi',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './assets/icon.png',
+    icon: './assets/images/icon-1024.png',
     scheme: 'ansimi',
     userInterfaceStyle: 'light',
     splash: {
@@ -24,9 +24,11 @@ module.exports = {
       },
     },
     android: {
+      icon: './assets/images/icon-192.png',
       adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#1D9E75',
+        foregroundImage: './assets/adaptive-icon.png',   // 원본 1024×1024
+        monochromeImage: './assets/adaptive-icon.png',
+        backgroundColor: '#FFFFFF',
       },
       package: 'com.ansimi.app',
       permissions: [
@@ -41,7 +43,7 @@ module.exports = {
     web: {
       bundler: 'metro',
       output: 'static',
-      favicon: './assets/favicon.png',
+      favicon: './assets/images/icon-192.png',
     },
     plugins: [
       'expo-router',
