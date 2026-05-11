@@ -7,6 +7,7 @@ import {
   Alert,
   Linking,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
@@ -17,6 +18,8 @@ import { useAutoAnalyze } from '@/hooks/useAutoAnalyze';
 export default function ParentSettingsScreen() {
   const { user, family, signOut } = useAuthStore();
   const { isEnabled, checkPermission, openSettings } = useAutoAnalyze();
+  const { width: screenWidth } = useWindowDimensions();
+  const signOutWidth = screenWidth * 0.25;
 
   useEffect(() => { checkPermission(); }, []);
 
@@ -49,9 +52,20 @@ export default function ParentSettingsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title} accessibilityRole="header">
-          ⚙️ 설정
-        </Text>
+        {/* 상단 바: 제목 + 우측 로그아웃 */}
+        <View style={styles.topBar}>
+          <Text style={styles.title} accessibilityRole="header">
+            ⚙️ 설정
+          </Text>
+          <TouchableOpacity
+            style={[styles.topSignOutBtn, { width: signOutWidth }]}
+            onPress={handleSignOut}
+            accessibilityLabel="로그아웃"
+            accessibilityRole="button"
+          >
+            <Text style={styles.topSignOutText}>로그아웃</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 계정 정보 */}
         <Section title="계정">
@@ -99,18 +113,6 @@ export default function ParentSettingsScreen() {
               문자 원문은 AI 분석 후 즉시 파기되며 서버에 저장되지 않습니다.
             </Text>
           </View>
-        </Section>
-
-        {/* 로그아웃 */}
-        <Section title="기타">
-          <TouchableOpacity
-            style={styles.signOutBtn}
-            onPress={handleSignOut}
-            accessibilityLabel="로그아웃"
-            accessibilityRole="button"
-          >
-            <Text style={styles.signOutText}>로그아웃</Text>
-          </TouchableOpacity>
         </Section>
 
         <Text style={styles.version}>안심이 v1.0.0 · 안심이가 지켜드릴게요 🛡️</Text>
@@ -176,7 +178,23 @@ const row = StyleSheet.create({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 18, paddingTop: 20, paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary, marginBottom: 22 },
+  title: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary },
+
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+  },
+  topSignOutBtn: {
+    backgroundColor: Colors.dangerBg,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.danger + '40',
+  },
+  topSignOutText: { fontSize: 14, color: Colors.danger, fontWeight: '700' },
 
   menuRow: {
     flexDirection: 'row',

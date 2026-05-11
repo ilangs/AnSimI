@@ -15,7 +15,7 @@ import { Alert, Linking } from 'react-native';
 const API_URL = process.env.EXPO_PUBLIC_API_URL!;
 const TOSS_CLIENT_KEY = process.env.EXPO_PUBLIC_TOSS_CLIENT_KEY ?? 'test_ck_placeholder';
 
-export const SUBSCRIPTION_PRICE = 3900;
+export const SUBSCRIPTION_PRICE = 2900;
 export const SUBSCRIPTION_PLAN = '안심이 자녀 플랜';
 
 export interface PaymentResult {

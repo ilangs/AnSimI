@@ -18,11 +18,14 @@ import FamilyCard from '@/components/child/FamilyCard';
 import AlertList from '@/components/child/AlertList';
 import WeeklyStats from '@/components/child/WeeklyStats';
 import { AVG_FRAUD_AMOUNT } from '@/constants/riskLevels';
+import { useLinkApproval } from '@/hooks/useLinkApproval';
 
 export default function ChildDashboardScreen() {
   const router = useRouter();
   const { user, family } = useAuthStore();
   const { loadFamily, members } = useFamilyStore();
+  const { alerts: linkAlerts, pendingCount: linkPendingCount } = useLinkApproval();
+  const latestLinkAlert = linkAlerts.find((a) => a.status === 'pending');
   const {
     alerts,
     unreadCount,
@@ -147,6 +150,34 @@ export default function ChildDashboardScreen() {
                 ))
               )}
             </View>
+
+            {/* 링크 알림 미리보기 */}
+            {linkPendingCount > 0 && latestLinkAlert && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>링크 알림</Text>
+                <TouchableOpacity
+                  style={styles.linkPreviewCard}
+                  onPress={() => router.push('/(child)/link-alerts' as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`확인 대기 중인 링크 알림 ${linkPendingCount}건`}
+                >
+                  <View style={styles.linkPreviewHeader}>
+                    <Text style={styles.linkPreviewIcon}>
+                      {latestLinkAlert.risk_level === 'high' ? '🚨' : '⚠️'}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.linkPreviewTitle}>
+                        부모님 폰 위험 링크 {linkPendingCount}건
+                      </Text>
+                      <Text style={styles.linkPreviewBody} numberOfLines={1}>
+                        {latestLinkAlert.message_preview ?? '링크 검토 필요'}
+                      </Text>
+                    </View>
+                    <Text style={styles.linkPreviewArrow}>모두 확인하기 →</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* 이번 주 통계 */}
             {totalBlocked > 0 && (
@@ -282,6 +313,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   markAllRead: { fontSize: 14, color: Colors.brand, fontWeight: '600' },
+
+  // 링크 알림 미리보기
+  linkPreviewCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.danger,
+  },
+  linkPreviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  linkPreviewIcon: { fontSize: 24 },
+  linkPreviewTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.danger,
+    marginBottom: 2,
+  },
+  linkPreviewBody: { fontSize: 13, color: Colors.textSecondary },
+  linkPreviewArrow: { fontSize: 12, color: Colors.danger, fontWeight: '700' },
 
   // 알림 없음
   emptyAlerts: { alignItems: 'center', paddingVertical: 32, gap: 10 },

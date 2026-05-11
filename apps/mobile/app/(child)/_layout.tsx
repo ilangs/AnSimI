@@ -3,6 +3,7 @@ import { Colors } from '@/constants/colors';
 import { Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlertStore } from '@/stores/alertStore';
+import { useLinkApproval } from '@/hooks/useLinkApproval';
 
 function TabIcon({ emoji, color }: { emoji: string; color: string }) {
   return <Text style={{ fontSize: 22, opacity: color === Colors.brand ? 1 : 0.5 }}>{emoji}</Text>;
@@ -10,6 +11,7 @@ function TabIcon({ emoji, color }: { emoji: string; color: string }) {
 
 export default function ChildLayout() {
   const unreadCount = useAlertStore((s) => s.unreadCount);
+  const { pendingCount } = useLinkApproval();
   const insets = useSafeAreaInsets();
 
   return (
@@ -19,17 +21,20 @@ export default function ChildLayout() {
         tabBarActiveTintColor: Colors.brand,
         tabBarInactiveTintColor: Colors.textTertiary,
         tabBarStyle: {
-          height: 56 + insets.bottom,
-          paddingBottom: insets.bottom,
+          height: 64 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
           paddingTop: 6,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
           backgroundColor: Colors.white,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
+          marginBottom: 2,
+          includeFontPadding: false,
         },
+        tabBarIconStyle: { marginTop: 2 },
       }}
     >
       <Tabs.Screen
@@ -45,6 +50,14 @@ export default function ChildLayout() {
         options={{
           title: '문자 분석',
           tabBarIcon: ({ color }) => <TabIcon emoji="🔍" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="link-alerts"
+        options={{
+          title: '링크 알림',
+          tabBarIcon: ({ color }) => <TabIcon emoji="🔗" color={color} />,
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
         }}
       />
       <Tabs.Screen

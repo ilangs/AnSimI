@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
@@ -25,6 +26,8 @@ export default function ChildSettingsScreen() {
   const router = useRouter();
   const { user, family, signOut, setFamily } = useAuthStore();
   const { members } = useFamilyStore();
+  const { width: screenWidth } = useWindowDimensions();
+  const signOutWidth = screenWidth * 0.25;
 
   // 알림 설정 상태
   const [dangerNotify, setDangerNotify] = useState(true);
@@ -153,7 +156,18 @@ export default function ChildSettingsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title} accessibilityRole="header">⚙️ 설정</Text>
+        {/* 상단 바: 제목 + 우측 로그아웃 */}
+        <View style={styles.topBar}>
+          <Text style={styles.title} accessibilityRole="header">⚙️ 설정</Text>
+          <TouchableOpacity
+            style={[styles.topSignOutBtn, { width: signOutWidth }]}
+            onPress={handleSignOut}
+            accessibilityLabel="로그아웃"
+            accessibilityRole="button"
+          >
+            <Text style={styles.topSignOutText}>로그아웃</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ── 계정 정보 ── */}
         <Section title="계정">
@@ -161,7 +175,7 @@ export default function ChildSettingsScreen() {
           <InfoRow label="이메일" value={user?.email ?? '-'} />
           <InfoRow
             label="구독 상태"
-            value={user?.is_subscribed ? '✅ 구독 중 (₩3,900/월)' : '❌ 미구독'}
+            value={user?.is_subscribed ? '✅ 구독 중 (₩2,900/월)' : '❌ 미구독'}
             valueColor={user?.is_subscribed ? Colors.safe : Colors.danger}
           />
         </Section>
@@ -250,7 +264,7 @@ export default function ChildSettingsScreen() {
           <Section title="구독 관리">
             <View style={styles.subscribeCard}>
               <Text style={styles.subscribePlan}>안심이 자녀 플랜</Text>
-              <Text style={styles.subscribePrice}>₩3,900</Text>
+              <Text style={styles.subscribePrice}>₩2,900</Text>
               <Text style={styles.subscribeUnit}>/월</Text>
               <Text style={styles.subscribeDesc}>
                 부모님 앱은 영구 무료 · 언제든 해지 가능
@@ -259,7 +273,7 @@ export default function ChildSettingsScreen() {
                 style={[styles.subscribeBtn, isSubscribing && { opacity: 0.6 }]}
                 onPress={handleSubscribe}
                 disabled={isSubscribing}
-                accessibilityLabel="구독 시작하기 월 3900원"
+                accessibilityLabel="구독 시작하기 월 2900원"
                 accessibilityRole="button"
               >
                 {isSubscribing
@@ -271,7 +285,7 @@ export default function ChildSettingsScreen() {
           </Section>
         ) : (
           <Section title="구독 관리">
-            <InfoRow label="플랜" value="자녀 플랜 (₩3,900/월)" />
+            <InfoRow label="플랜" value="자녀 플랜 (₩2,900/월)" />
             <TouchableOpacity
               style={styles.cancelSubBtn}
               onPress={handleCancelSubscription}
@@ -300,18 +314,6 @@ export default function ChildSettingsScreen() {
               분석 결과(위험도·요약)만 보관됩니다.
             </Text>
           </View>
-        </Section>
-
-        {/* ── 기타 ── */}
-        <Section title="기타">
-          <TouchableOpacity
-            style={styles.signOutBtn}
-            onPress={handleSignOut}
-            accessibilityLabel="로그아웃"
-            accessibilityRole="button"
-          >
-            <Text style={styles.signOutText}>로그아웃</Text>
-          </TouchableOpacity>
         </Section>
 
         <Text style={styles.version}>안심이 v1.0.0 · 안심이가 지켜드릴게요 🛡️</Text>
@@ -405,7 +407,23 @@ const row = StyleSheet.create({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 18, paddingTop: 20, paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary, marginBottom: 22 },
+  title: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary },
+
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+  },
+  topSignOutBtn: {
+    backgroundColor: Colors.dangerBg,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.danger + '40',
+  },
+  topSignOutText: { fontSize: 14, color: Colors.danger, fontWeight: '700' },
 
   // 코드 행
   codeRow: {

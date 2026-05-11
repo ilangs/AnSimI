@@ -34,23 +34,6 @@ export default function ParentHomeScreen() {
         {/* 오늘 차단 건수 */}
         <BlockedCount />
 
-        {/* 문자 분석 버튼 */}
-        <TouchableOpacity
-          style={styles.analyzeBtn}
-          onPress={() => router.push('/(parent)/analyze')}
-          accessibilityLabel="의심 문자 분석하기"
-          accessibilityRole="button"
-        >
-          <Text style={styles.analyzeBtnIcon}>🔍</Text>
-          <View style={styles.analyzeBtnBody}>
-            <Text style={styles.analyzeBtnTitle}>의심 문자 확인하기</Text>
-            <Text style={styles.analyzeBtnDesc}>
-              이상한 문자가 왔나요? 안심이에게 물어보세요
-            </Text>
-          </View>
-          <Text style={styles.analyzeBtnArrow}>→</Text>
-        </TouchableOpacity>
-
         {/* 가족 연결 코드 표시 (가족 미연결 시) */}
         {!family && (
           <View style={styles.codeBox}>

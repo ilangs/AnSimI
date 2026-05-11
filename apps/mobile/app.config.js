@@ -32,8 +32,6 @@ module.exports = {
       },
       package: 'com.ansimi.app',
       permissions: [
-        'RECEIVE_SMS',
-        'READ_SMS',
         'VIBRATE',
         'RECEIVE_BOOT_COMPLETED',
       ],
@@ -61,6 +59,8 @@ module.exports = {
       './plugins/withShareIntent',
       // 자동 SMS 분석: NotificationListenerService + NativeModule
       './plugins/withNotificationListener',
+      // react-native-view-shot, @react-native-ml-kit/text-recognition는
+      // config plugin이 아니라 autolinking 패키지이므로 plugins 등록 불필요
     ],
     experiments: {
       typedRoutes: true,
