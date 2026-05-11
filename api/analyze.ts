@@ -96,11 +96,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message, userId, familyId } = req.body;
+  const { message, userId, familyId, urls: rawUrls } = req.body as {
+    message: string;
+    userId: string;
+    familyId: string;
+    urls?: string[];
+  };
 
   if (!message || typeof message !== 'string' || !userId || !familyId) {
     return res.status(400).json({ error: '필수 파라미터가 누락되었습니다' });
   }
+
+  // 메모리 내에서만 사용 (Zero-Storage)
+  const urlsInput: string[] = Array.isArray(rawUrls)
+    ? rawUrls.filter((u) => typeof u === 'string' && u.length > 0).slice(0, 10)
+    : [];
 
   if (message.length > 2000) {
     return res.status(400).json({ error: '문자 내용이 너무 깁니다' });
@@ -119,15 +129,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? smsContent.trim().slice(0, 40) + (smsContent.trim().length > 40 ? '...' : '')
       : '';
 
+    // 0. Google Safe Browsing 조회 (URL 있을 때만)
+    let safeBrowsingHit = false;
+    let maliciousCount = 0;
+    if (urlsInput.length > 0) {
+      try {
+        const sbRes = await fetch(
+          `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${process.env.GOOGLE_SAFE_BROWSING_API_KEY ?? ''}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              client: { clientId: 'ansimi', clientVersion: '1.0.0' },
+              threatInfo: {
+                threatTypes: [
+                  'MALWARE',
+                  'SOCIAL_ENGINEERING',
+                  'UNWANTED_SOFTWARE',
+                  'POTENTIALLY_HARMFUL_APPLICATION',
+                ],
+                platformTypes: ['ANY_PLATFORM'],
+                threatEntryTypes: ['URL'],
+                threatEntries: urlsInput.map((u) => ({ url: u })),
+              },
+            }),
+          }
+        );
+        if (sbRes.ok) {
+          const sbJson = (await sbRes.json()) as { matches?: unknown[] };
+          maliciousCount = Array.isArray(sbJson.matches) ? sbJson.matches.length : 0;
+          safeBrowsingHit = maliciousCount > 0;
+        }
+      } catch (err) {
+        console.error('Safe Browsing 오류:', err);
+      }
+    }
+
+    // AI 프롬프트 보강용 컨텍스트
+    const linkContext =
+      urlsInput.length > 0
+        ? `\n\n[추가 컨텍스트 - URL 분석 결과]\n포함된 URL 수: ${urlsInput.length}\nSafe Browsing 매칭(악성 URL): ${maliciousCount}건${
+            safeBrowsingHit ? '\n→ 알려진 피싱 사이트 포함' : ''
+          }`
+        : '';
+
     // 1. OpenAI gpt-4o-mini 호출 — 원문은 메모리 내에서만 처리
     try {
+      const userContent = (smsContent ?? '') + linkContext;
       const response = await ai.chat.completions.create({
         model: 'gpt-4o-mini',
         max_tokens: 500,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
-          { role: 'user',   content: smsContent! },
+          { role: 'user',   content: userContent },
         ],
       });
 
@@ -136,6 +191,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const rawText = response.choices[0].message.content ?? '';
       analysisResult = parseAnalysisResponse(rawText);
+
+      // Safe Browsing 매칭 시 위험도 강제 상향
+      if (safeBrowsingHit) {
+        if (analysisResult.score < 76) analysisResult.score = 90;
+        analysisResult.level = '매우위험';
+        if (!analysisResult.reasons.some((r) => r.includes('피싱 사이트'))) {
+          analysisResult.reasons.unshift('알려진 피싱 사이트 포함 (Google Safe Browsing 매칭)');
+        }
+      }
     } catch (err: unknown) {
       smsContent = null;
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -168,9 +232,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (dbError) {
       console.error('DB 저장 오류:', JSON.stringify(dbError));
     }
-    // 3. 위험 감지 시 가족에게 Expo Push 알림 발송
-    // - 부모가 분석 → 자녀에게 알림
-    // - 자녀가 분석 → 부모에게 알림
+    // 3. 위험 감지 시 알림 발송
+    // - 부모가 분석 → 자녀에게 알림 (자녀가 부모 폰 상황 인지)
+    // - 자녀가 분석 → 자녀 본인만 (부모님께 걱정 안 끼치기 위해 부모 알림 미발송)
     if (analysisResult.score >= 51) {
       const alertType = analysisResult.score >= 76 ? 'danger' : 'warning';
 
@@ -209,15 +273,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let targetTokens: string[] = [];
 
-        if (memberIds.length > 0) {
-          // 3-3. 알림 대상: 부모가 분석 → 자녀, 자녀가 분석 → 부모
-          const targetRole = senderRole === 'parent' ? 'child' : 'parent';
-
+        if (senderRole === 'parent' && memberIds.length > 0) {
+          // 3-3. 부모가 분석한 경우에만 자녀에게 알림 발송
+          // (자녀가 분석한 경우 부모에게 알림하지 않음 — 부모님께 걱정 끼치지 않기 위함)
           const { data: targetUsers } = await supabase
             .from('users')
             .select('fcm_token')
             .in('id', memberIds)
-            .eq('role', targetRole)
+            .eq('role', 'child')
             .not('fcm_token', 'is', null);
 
           targetTokens = (targetUsers ?? [])
@@ -259,6 +322,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       ...analysisResult,
       messageId: savedMessage?.id ?? null,
+      linkAnalysis: {
+        urls: urlsInput,            // 메모리 응답용 — DB 미저장
+        maliciousCount,
+        safeBrowsingHit,
+      },
     });
   } finally {
     // ✅ finally 보장: 예외 경로 포함 원문 변수 이중 파기

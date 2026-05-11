@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "안심이",
-    "slug": "ansimi-app",
+    "slug": "ansimi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -32,6 +32,18 @@ const ALERT_MESSAGES = {
     title: '✅ 안전 확인',
     body: '부모님이 안전해요.',
   },
+  link_danger: {
+    title: '⚠️ 부모님 폰에 의심 링크',
+    body: '주의가 필요한 링크가 감지됐어요.',
+  },
+  link_high_danger: {
+    title: '🚨 부모님 폰에 위험 링크!',
+    body: '위험한 링크가 감지됐어요. 즉시 확인해주세요.',
+  },
+  link_reported: {
+    title: '⛔ 위험한 문자 확인됨',
+    body: '자녀가 위험한 링크로 확인했어요. 절대 클릭하지 마세요!',
+  },
 } as const;
 
 type AlertType = keyof typeof ALERT_MESSAGES;
@@ -41,11 +53,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { familyId, alertType, messageId, sosUserId } = req.body as {
+  const {
+    familyId,
+    alertType,
+    messageId,
+    sosUserId,
+    alertId,
+    riskLevel,
+    maliciousCount,
+    safeBrowsingHit,
+    messagePreview,
+    imageData,
+    targetRole,
+  } = req.body as {
     familyId: string;
     alertType: AlertType;
     messageId?: string;
     sosUserId?: string;
+    alertId?: string;
+    riskLevel?: 'high' | 'medium' | 'low';
+    maliciousCount?: number;
+    safeBrowsingHit?: boolean;
+    messagePreview?: string;
+    imageData?: string;
+    targetRole?: 'parent' | 'child';
   };
 
   if (!familyId || !alertType) {
@@ -54,6 +85,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!ALERT_MESSAGES[alertType]) {
     return res.status(400).json({ error: '유효하지 않은 alertType' });
   }
+
+  // 링크 알림 방향: 부모 폰 감지 → 자녀 폰 수신 (기본 child)
+  // 신고 알림: 자녀 → 부모 (link_reported)
+  const resolvedTargetRole: 'parent' | 'child' =
+    targetRole ?? (alertType === 'link_reported' ? 'parent' : 'child');
 
   // 1-1. 가족 구성원 user_id 목록 조회
   const { data: memberRows, error: memberErr } = await supabase
@@ -68,22 +104,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const memberIds = (memberRows ?? []).map((m: any) => m.user_id as string).filter(Boolean);
 
-  // 1-2. 자녀 역할이면서 fcm_token 보유한 사용자만 조회
+  // 1-2. 대상 역할(부모/자녀) + fcm_token 보유한 사용자만 조회
   let children: { id: string; fcm_token: string }[] = [];
   if (memberIds.length > 0) {
-    const { data: childUsers } = await supabase
+    const { data: targetUsers } = await supabase
       .from('users')
       .select('id, fcm_token')
       .in('id', memberIds)
-      .eq('role', 'child')
+      .eq('role', resolvedTargetRole)
       .not('fcm_token', 'is', null);
-    children = (childUsers ?? []) as { id: string; fcm_token: string }[];
+    children = (targetUsers ?? []) as { id: string; fcm_token: string }[];
   }
 
   const tokens: string[] = children.map((u) => u.fcm_token).filter(Boolean);
 
   // 2. alerts 테이블 저장
-  const senderId = sosUserId ?? (members?.[0] as any)?.user_id;
+  const senderId = sosUserId ?? (memberRows?.[0] as any)?.user_id;
   if (senderId) {
     const { error: alertErr } = await supabase.from('alerts').insert({
       family_id: familyId,
@@ -100,15 +136,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 3. Expo Push API로 발송
   const msg = ALERT_MESSAGES[alertType];
+  // 링크 알림 본문에 messagePreview 반영
+  const dynamicBody =
+    (alertType === 'link_danger' || alertType === 'link_high_danger') && messagePreview
+      ? `"${messagePreview.slice(0, 40)}"`
+      : msg.body;
+
+  // 이미지 base64는 Expo Push payload 크기 제한(약 4KB)을 초과할 수 있음
+  // → data 페이로드에는 alertId만 넣고, 이미지는 자녀 앱이 Supabase에서 별도 fetch
   const messages = tokens.map((token) => ({
     to: token,
     sound: 'default' as const,
     title: msg.title,
-    body: msg.body,
+    body: dynamicBody,
     data: {
       type: alertType,
       familyId,
       messageId: messageId ?? '',
+      alertId: alertId ?? '',
+      riskLevel: riskLevel ?? '',
+      maliciousCount: maliciousCount ?? 0,
+      safeBrowsingHit: safeBrowsingHit ?? false,
+      // imageData는 크기 문제로 페이로드에서 제외 — 자녀 앱이 alertId로 별도 조회
+      hasImage: Boolean(imageData),
     },
     priority: 'high' as const,
     channelId: 'ansimi-alerts',

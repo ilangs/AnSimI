@@ -8,7 +8,7 @@ const supabase = createClient(
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY!;
 const TOSS_API_BASE = 'https://api.tosspayments.com/v1';
-const SUBSCRIPTION_AMOUNT = 3900;
+const SUBSCRIPTION_AMOUNT = 2900;
 
 // Base64 인코딩 (토스페이먼츠 인증)
 function toBase64(str: string) {
