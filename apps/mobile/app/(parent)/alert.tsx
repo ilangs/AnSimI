@@ -1,44 +1,31 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
-  FlatList,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
+  StyleSheet,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
-import { useAuthStore } from '@/stores/authStore';
-import { useAlertStore } from '@/stores/alertStore';
 import { useAnalyze } from '@/hooks/useAnalyze';
-import AlertCard from '@/components/parent/AlertCard';
 import AnalyzeResult from '@/components/parent/AnalyzeResult';
 import AnalyzeLoadingAnimation from '@/components/parent/AnalyzeLoadingAnimation';
 
 const EXAMPLE_MESSAGES = [
   '[금감원] 귀하의 계좌가 범죄에 이용되고 있습니다. 즉시 자산이전이 필요합니다. 010-xxxx-xxxx',
   '[택배] 고객님 택배가 도착했습니다. 주소 확인: http://bit.ly/xxxxx',
+  '[카드사] 승인 완료: 스타벅스 5,500원 (잔액 128,400원)',
 ];
 
 export default function ParentAlertScreen() {
-  const { family } = useAuthStore();
-  const { alerts, loadAlerts } = useAlertStore();
-  const { analyzeAsync, result, isLoading, error, reset } = useAnalyze();
   const [text, setText] = useState('');
+  const { analyzeAsync, result, isLoading, error, reset } = useAnalyze();
   const inputRef = useRef<TextInput>(null);
-
-  useEffect(() => {
-    if (family?.id) loadAlerts(family.id);
-  }, [family?.id]);
-
-  const dangerAlerts = alerts
-    .filter((a) => a.type === 'danger' || a.type === 'warning')
-    .slice(0, 10); // 최근 10건만
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
@@ -60,271 +47,194 @@ export default function ParentAlertScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        {/* 헤더 */}
+        <View style={styles.header}>
+          <Text style={styles.title} accessibilityRole="header">🚨 위험 문자</Text>
+          <Text style={styles.subtitle}>의심스러운 문자를 붙여넣으세요</Text>
+          {/* 안내: 위험 감지 시 자녀에게 자동 알림 */}
+          <View style={styles.noticeBanner}>
+            <Text style={styles.noticeText}>
+              ⚡ 위험문자 감지시 자녀에게 자동 알림
+            </Text>
+          </View>
+        </View>
+
         <ScrollView
-          style={styles.flex}
+          style={styles.scroll}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 헤더 */}
-          <View style={styles.header}>
-            <Text style={styles.title} accessibilityRole="header">
-              🚨 위험 문자
-            </Text>
-            <Text style={styles.subtitle}>
-              안심이가 차단한 위험 문자 목록이에요
-            </Text>
-          </View>
-
-          {/* ① 최근 차단 이력 (상단) */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              최근 차단 이력 ({dangerAlerts.length}건)
-            </Text>
-            {dangerAlerts.length > 0 ? (
-              <FlatList
-                data={dangerAlerts}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => <AlertCard alert={item} />}
-                scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-              />
-            ) : (
-              <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>✅</Text>
-                <Text style={styles.emptyTitle}>위험한 문자가 없어요</Text>
-                <Text style={styles.emptySubtitle}>
-                  안심이가 잘 지키고 있어요
-                </Text>
+          {!result && !isLoading && (
+            <>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  value={text}
+                  onChangeText={setText}
+                  placeholder="문자 내용을 여기에 입력하거나 붙여넣으세요"
+                  placeholderTextColor={Colors.textTertiary}
+                  multiline
+                  numberOfLines={6}
+                  textAlignVertical="top"
+                  maxLength={2000}
+                  accessibilityLabel="문자 내용 입력"
+                />
+                <Text style={styles.charCount}>{text.length}/2000</Text>
               </View>
-            )}
-          </View>
 
-          {/* ② 의심 문자 분석하기 (하단, 동일 화면 통합) */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔍 의심 문자 분석하기</Text>
-
-            {!result && !isLoading && (
-              <>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    ref={inputRef}
-                    style={styles.input}
-                    value={text}
-                    onChangeText={setText}
-                    placeholder="이상한 문자를 여기에 붙여넣으세요"
-                    placeholderTextColor={Colors.textTertiary}
-                    multiline
-                    numberOfLines={5}
-                    textAlignVertical="top"
-                    maxLength={2000}
-                    accessibilityLabel="문자 내용 입력"
-                  />
-                  <Text style={styles.charCount}>{text.length}/2000</Text>
-                </View>
-
-                <View style={styles.exampleSection}>
-                  <Text style={styles.exampleTitle}>예시로 테스트해보세요</Text>
-                  {EXAMPLE_MESSAGES.map((msg, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={styles.exampleBtn}
-                      onPress={() => {
-                        reset();
-                        setText(msg);
-                      }}
-                      accessibilityLabel={`예시 ${i + 1} 선택`}
-                    >
-                      <Text style={styles.exampleNum}>예시 {i + 1}</Text>
-                      <Text style={styles.exampleText} numberOfLines={2}>
-                        {msg}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.analyzeBtn,
-                    !text.trim() && styles.analyzeBtnDisabled,
-                  ]}
-                  onPress={handleAnalyze}
-                  disabled={!text.trim()}
-                  accessibilityLabel="문자 분석 시작"
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.analyzeBtnText}>
-                    🛡️ 안심이에게 분석 맡기기
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {isLoading && <AnalyzeLoadingAnimation />}
-
-            {error && !isLoading && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorIcon}>⚠️</Text>
-                <Text style={styles.errorTitle}>분석에 실패했어요</Text>
-                <Text style={styles.errorDesc}>
-                  {error.message ?? '잠시 후 다시 시도해주세요'}
-                </Text>
-                <TouchableOpacity style={styles.retryBtn} onPress={handleAnalyze}>
-                  <Text style={styles.retryBtnText}>다시 분석하기</Text>
-                </TouchableOpacity>
+              <View style={styles.exampleSection}>
+                <Text style={styles.exampleTitle}>예시로 테스트해보세요</Text>
+                {EXAMPLE_MESSAGES.map((msg, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.exampleBtn}
+                    onPress={() => { reset(); setText(msg); }}
+                    accessibilityLabel={`예시 ${i + 1} 선택`}
+                  >
+                    <Text style={styles.exampleNum}>예시 {i + 1}</Text>
+                    <Text style={styles.exampleText} numberOfLines={2}>{msg}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            )}
+            </>
+          )}
 
-            {result && !isLoading && (
-              <>
-                <AnalyzeResult result={result} originalText={text} />
-                <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-                  <Text style={styles.resetBtnText}>🔄 새 문자 분석하기</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
+          {isLoading && <AnalyzeLoadingAnimation />}
+
+          {error && !isLoading && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorTitle}>분석에 실패했어요</Text>
+              <Text style={styles.errorDesc}>{error.message ?? '잠시 후 다시 시도해주세요'}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={handleAnalyze}>
+                <Text style={styles.retryBtnText}>다시 분석하기</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {result && !isLoading && (
+            <>
+              <AnalyzeResult result={result} originalText={text} />
+              <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
+                <Text style={styles.resetBtnText}>🔄 새 문자 분석하기</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
+
+        {!result && !isLoading && (
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.analyzeBtn, !text.trim() && styles.analyzeBtnDisabled]}
+              onPress={handleAnalyze}
+              disabled={!text.trim()}
+              accessibilityLabel="문자 분석 시작"
+            >
+              <Text style={styles.analyzeBtnText}>🛡️ 안심이에게 분석 맡기기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: Colors.white },
   flex: { flex: 1 },
-  content: { paddingBottom: 40 },
-
-  header: {
-    padding: 20,
-    paddingBottom: 12,
-    backgroundColor: Colors.white,
+  header: { padding: 20, paddingBottom: 12 },
+  title: { fontSize: 26, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6 },
+  subtitle: { fontSize: 17, color: Colors.textSecondary, marginBottom: 12 },
+  noticeBanner: {
+    backgroundColor: Colors.brandLight ?? '#E8F8F2',
+    borderRadius: 10,
+    padding: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.brand,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  subtitle: { fontSize: 16, color: Colors.textSecondary },
-
-  section: { padding: 16, paddingTop: 18 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    marginBottom: 12,
-  },
-
-  // 빈 상태
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-  },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 6,
-  },
-  emptySubtitle: { fontSize: 14, color: Colors.textSecondary },
-
-  // 입력창
+  noticeText: { fontSize: 14, color: Colors.brand, fontWeight: '600' },
+  scroll: { flex: 1 },
+  content: { padding: 20, paddingBottom: 20, gap: 20 },
   inputWrapper: {
     borderWidth: 2,
     borderColor: Colors.border,
-    borderRadius: 14,
-    backgroundColor: Colors.white,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
     overflow: 'hidden',
-    marginBottom: 14,
   },
   input: {
-    padding: 14,
-    fontSize: 17,
+    padding: 16,
+    fontSize: 18,
     color: Colors.textPrimary,
-    lineHeight: 26,
-    minHeight: 120,
+    lineHeight: 28,
+    minHeight: 140,
   },
   charCount: {
     textAlign: 'right',
-    padding: 8,
-    paddingTop: 2,
-    fontSize: 12,
+    padding: 10,
+    paddingTop: 4,
+    fontSize: 13,
     color: Colors.textTertiary,
   },
-
-  // 예시
-  exampleSection: { gap: 8, marginBottom: 14 },
-  exampleTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginBottom: 2,
-  },
+  exampleSection: { gap: 10 },
+  exampleTitle: { fontSize: 15, fontWeight: '700', color: Colors.textSecondary, marginBottom: 4 },
   exampleBtn: {
-    backgroundColor: Colors.white,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: Colors.border,
-    gap: 4,
+    gap: 6,
   },
-  exampleNum: { fontSize: 11, fontWeight: '700', color: Colors.brand },
-  exampleText: { fontSize: 13, color: Colors.textPrimary, lineHeight: 18 },
-
-  // 분석 버튼
+  exampleNum: { fontSize: 12, fontWeight: '700', color: Colors.brand },
+  exampleText: { fontSize: 14, color: Colors.textPrimary, lineHeight: 20 },
+  errorBox: {
+    alignItems: 'center',
+    padding: 32,
+    gap: 12,
+    backgroundColor: Colors.dangerBg,
+    borderRadius: 16,
+  },
+  errorIcon: { fontSize: 48 },
+  errorTitle: { fontSize: 22, fontWeight: '700', color: Colors.danger },
+  errorDesc: { fontSize: 17, color: Colors.textSecondary },
+  retryBtn: {
+    marginTop: 8,
+    backgroundColor: Colors.danger,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  retryBtnText: { color: Colors.white, fontSize: 17, fontWeight: '700' },
+  footer: { padding: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: Colors.white },
   analyzeBtn: {
     backgroundColor: Colors.brand,
-    height: 58,
-    borderRadius: 16,
+    height: 64,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: Colors.brand,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   analyzeBtnDisabled: { opacity: 0.4 },
-  analyzeBtnText: { color: Colors.white, fontSize: 18, fontWeight: '800' },
-
-  // 에러
-  errorBox: {
-    alignItems: 'center',
-    padding: 28,
-    gap: 10,
-    backgroundColor: Colors.dangerBg,
-    borderRadius: 14,
-  },
-  errorIcon: { fontSize: 40 },
-  errorTitle: { fontSize: 20, fontWeight: '700', color: Colors.danger },
-  errorDesc: { fontSize: 15, color: Colors.textSecondary, textAlign: 'center' },
-  retryBtn: {
-    marginTop: 6,
-    backgroundColor: Colors.danger,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  retryBtnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
-
-  // 재분석
+  analyzeBtnText: { color: Colors.white, fontSize: 20, fontWeight: '800' },
   resetBtn: {
     alignItems: 'center',
-    padding: 14,
-    backgroundColor: Colors.white,
+    padding: 16,
+    backgroundColor: Colors.background,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    marginTop: 12,
   },
-  resetBtnText: { fontSize: 15, color: Colors.textPrimary, fontWeight: '600' },
+  resetBtnText: { fontSize: 17, color: Colors.textPrimary, fontWeight: '600' },
 });

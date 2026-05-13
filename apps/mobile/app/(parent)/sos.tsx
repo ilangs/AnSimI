@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import SosButton from '@/components/parent/SosButton';
@@ -15,33 +15,38 @@ function InfoItem({ text }: { text: string }) {
 
 export default function ParentSosScreen() {
   const { family, user } = useAuthStore();
+  const { height } = useWindowDimensions();
+  const isSmallScreen = height < 700;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        {/* 타이틀 */}
-        <View style={styles.titleSection}>
+        {/* 상단: SOS 마크 + 메뉴명 (가로 배치) */}
+        <View style={styles.titleRow}>
           <Text style={styles.icon} accessibilityElementsHidden>🆘</Text>
-          <Text style={styles.title} accessibilityRole="header">
-            SOS 긴급 알림
-          </Text>
-          <Text style={styles.desc}>
-            아래 버튼을 누르면 자녀에게 즉시 알림이 가요
-          </Text>
+          <View style={styles.titleTextWrap}>
+            <Text style={styles.title} accessibilityRole="header">
+              SOS 긴급 알림
+            </Text>
+            <Text style={styles.desc}>
+              버튼을 누르면 자녀에게 즉시 알림이 가요
+            </Text>
+          </View>
         </View>
 
-        {/* SOS 버튼 */}
+        {/* 중앙: SOS 버튼 (가로 넓게, 세로 짧게) */}
         <View style={styles.sosSection}>
           <SosButton
             familyId={family?.id ?? ''}
             senderId={user?.id ?? ''}
-            large
           />
         </View>
 
-        {/* 이럴 때 누르세요 */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>이럴 때 누르세요</Text>
+        {/* 하단: 안내 (모두 보이도록) */}
+        <View style={[styles.infoBox, isSmallScreen && styles.infoBoxCompact]}>
+          <Text style={[styles.infoTitle, isSmallScreen && styles.infoTitleCompact]}>
+            이럴 때 누르세요
+          </Text>
           <InfoItem text="모르는 사람이 계좌 이체를 요구할 때" />
           <InfoItem text="경찰·검찰·금감원이라고 전화가 왔을 때" />
           <InfoItem text="개인정보나 비밀번호를 알려달라고 할 때" />
@@ -56,47 +61,64 @@ const infoStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 10,
+    marginBottom: 8,
     alignItems: 'flex-start',
   },
-  bullet: { fontSize: 18, color: Colors.danger, lineHeight: 26 },
-  text: { flex: 1, fontSize: 16, color: Colors.textPrimary, lineHeight: 26 },
+  bullet: { fontSize: 18, color: Colors.danger, lineHeight: 24 },
+  text: { flex: 1, fontSize: 15, color: Colors.textPrimary, lineHeight: 24 },
 });
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.white },
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    gap: 16,
+    paddingBottom: 12,
+    justifyContent: 'space-between',
   },
-  titleSection: { alignItems: 'center', gap: 6 },
-  icon: { fontSize: 52 },
+
+  // 상단 (가로 타이틀)
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  icon: { fontSize: 44 },
+  titleTextWrap: { flex: 1 },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.textPrimary,
-    textAlign: 'center',
+    marginBottom: 2,
   },
   desc: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
   },
-  sosSection: { alignItems: 'center', marginVertical: 4 },
+
+  // 중앙 (SOS 버튼)
+  sosSection: {
+    alignSelf: 'stretch',
+    marginVertical: 4,
+  },
+
+  // 하단 (안내)
   infoBox: {
     backgroundColor: Colors.dangerBg,
     borderRadius: 16,
-    padding: 18,
+    padding: 16,
     borderWidth: 1,
     borderColor: Colors.danger + '40',
   },
+  infoBoxCompact: { padding: 12 },
   infoTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: Colors.danger,
-    marginBottom: 12,
+    marginBottom: 10,
   },
+  infoTitleCompact: { fontSize: 16, marginBottom: 8 },
 });

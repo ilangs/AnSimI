@@ -57,7 +57,7 @@ export default function ChildAnalyzeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -66,10 +66,10 @@ export default function ChildAnalyzeScreen() {
         <View style={styles.header}>
           <Text style={styles.title} accessibilityRole="header">🔍 문자 분석</Text>
           <Text style={styles.subtitle}>의심스러운 문자를 붙여넣으세요</Text>
-          {/* 안내: 위험 감지 시 부모님께 자동 알림 */}
+          {/* 안내: 위험 감지 시 자녀폰 실행 내용 한줄 요약 */}
           <View style={styles.noticeBanner}>
             <Text style={styles.noticeText}>
-              ⚡ 위험 문자 감지 시 부모님께 자동으로 알림이 가요
+              ⚡ 위험문자 감지시 즉시 위험도와 대처법을 알려드려요
             </Text>
           </View>
         </View>

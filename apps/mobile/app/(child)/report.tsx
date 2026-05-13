@@ -36,7 +36,7 @@ export default function ReportScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* 헤더 */}
       <View style={styles.header}>
         <Text style={styles.title} accessibilityRole="header">

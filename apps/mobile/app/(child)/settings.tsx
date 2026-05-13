@@ -154,7 +154,7 @@ export default function ChildSettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* 상단 바: 제목 + 우측 로그아웃 */}
         <View style={styles.topBar}>

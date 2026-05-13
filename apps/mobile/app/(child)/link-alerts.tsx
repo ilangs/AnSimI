@@ -65,7 +65,7 @@ export default function LinkAlertsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={alerts}
         keyExtractor={(item) => item.id}

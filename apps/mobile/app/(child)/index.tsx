@@ -77,7 +77,7 @@ export default function ChildDashboardScreen() {
     alerts.find((a) => a.sender_id === userId);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={alerts.slice(0, 30)}
         keyExtractor={(item) => item.id}

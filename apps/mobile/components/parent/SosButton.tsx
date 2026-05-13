@@ -146,14 +146,16 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
     borderRadius: 22,
+    alignSelf: 'stretch',  // 가로 폭 확장
   },
   button: {
     backgroundColor: Colors.danger,
     borderRadius: 22,
-    paddingVertical: 22,
+    paddingVertical: 16,   // 상하 폭 축소
+    paddingHorizontal: 20,
     alignItems: 'center',
-    gap: 4,
-    minHeight: 80,     // 터치 영역 최소 56dp 초과
+    gap: 2,
+    minHeight: 72,         // 터치 영역 56dp 초과
   },
   buttonLarge: {
     paddingVertical: 32,
@@ -161,15 +163,15 @@ const styles = StyleSheet.create({
     minHeight: 130,
   },
   buttonLoading: { opacity: 0.75 },
-  icon: { fontSize: 34 },
+  icon: { fontSize: 32 },
   iconLarge: { fontSize: 52 },
   text: {
-    fontSize: 24,     // 어르신 친화 크기
+    fontSize: 22,     // 어르신 친화 크기
     fontWeight: '900',
     color: Colors.white,
     letterSpacing: 0.5,
   },
   textLarge: { fontSize: 30 },
-  subText: { fontSize: 16, color: Colors.white + 'CC' },
+  subText: { fontSize: 14, color: Colors.white + 'CC' },
   subTextLarge: { fontSize: 20 },
 });
