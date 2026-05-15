@@ -8,6 +8,9 @@
   ],
   "scripts": {
     "mobile": "cd apps/mobile && npx expo start",
+    "build:android": "cd apps/mobile && eas build --platform android",
+    "build:ios": "cd apps/mobile && eas build --platform ios",
+    "build:all": "cd apps/mobile && eas build --platform all",
     "api:dev": "cd apps/api && vercel dev",
     "db:migrate": "supabase db push"
   },

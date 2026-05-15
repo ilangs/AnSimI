@@ -1,30 +1,9 @@
 {
+  "_comment": "이 파일은 EAS 프로젝트 ID 참조용 최소 파일입니다. 실제 빌드 설정은 apps/mobile/app.config.js를 사용하세요. 빌드는 반드시 'cd apps/mobile && eas build' 로 실행해야 합니다.",
   "expo": {
     "name": "안심이",
     "slug": "ansimi",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.ansimi.app"
-    },
-    "android": {
-      "package": "com.ansimi.app",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
-      }
-    },
     "extra": {
       "eas": {
         "projectId": "a63237c0-8f28-48c0-9437-d95e1d14034a"
