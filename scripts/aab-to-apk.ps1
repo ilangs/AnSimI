@@ -117,7 +117,11 @@ if (-Not (Test-Path $apks)) {
 
 $tempDir = Join-Path $projectRoot "_apks_temp"
 if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
-Expand-Archive -Path $apks -DestinationPath $tempDir -Force
+
+# Use .NET ZipFile API (works regardless of .apks extension,
+# unlike Expand-Archive which only accepts .zip)
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::ExtractToDirectory($apks, $tempDir)
 
 $universalApk = Join-Path $tempDir "universal.apk"
 if (Test-Path $universalApk) {
