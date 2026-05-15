@@ -25,7 +25,7 @@ import { useAutoAnalyze } from '@/hooks/useAutoAnalyze';
 export default function ChildSettingsScreen() {
   const router = useRouter();
   const { user, family, signOut, setFamily } = useAuthStore();
-  const { members } = useFamilyStore();
+  const { members, removeMember } = useFamilyStore();
   const { width: screenWidth } = useWindowDimensions();
   const signOutWidth = screenWidth * 0.25;
 
@@ -66,8 +66,12 @@ export default function ChildSettingsScreen() {
     } catch {}
   };
 
-  // 가족 구성원 제거
+  // 가족 구성원 제거 — RPC remove_family_member 사용 (RLS 우회 + 멤버십 검증)
   const handleRemoveMember = (userId: string, name: string) => {
+    if (!family?.id) {
+      Alert.alert('오류', '가족 정보를 불러올 수 없어요');
+      return;
+    }
     Alert.alert(
       '가족 제거',
       `${name}님을 가족 그룹에서 제거할까요?`,
@@ -78,14 +82,14 @@ export default function ChildSettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await supabase
-                .from('family_members')
-                .delete()
-                .eq('family_id', family?.id)
-                .eq('user_id', userId);
-              Alert.alert('완료', '가족 구성원을 제거했어요');
-            } catch {
-              Alert.alert('오류', '잠시 후 다시 시도해주세요');
+              await removeMember(family.id, userId);
+              Alert.alert('완료', `${name}님을 가족에서 제거했어요`);
+            } catch (err: any) {
+              console.error('가족 제거 오류:', err);
+              Alert.alert(
+                '제거 실패',
+                err?.message ?? '잠시 후 다시 시도해주세요'
+              );
             }
           },
         },

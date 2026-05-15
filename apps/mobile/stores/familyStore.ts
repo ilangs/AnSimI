@@ -11,6 +11,7 @@ interface FamilyStore {
   loadFamily: (familyId: string) => Promise<void>;
   createFamily: (userId: string, name?: string) => Promise<Family>;
   joinFamily: (code: string, userId: string) => Promise<Family>;
+  removeMember: (familyId: string, targetUserId: string) => Promise<void>;
   generateCode: () => string;
 }
 
@@ -18,7 +19,7 @@ function generateSixDigitCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-export const useFamilyStore = create<FamilyStore>((set) => ({
+export const useFamilyStore = create<FamilyStore>((set, get) => ({
   family: null,
   members: [],
   isLoading: false,
@@ -81,5 +82,27 @@ export const useFamilyStore = create<FamilyStore>((set) => ({
     const family = data as Family;
     set({ family });
     return family;
+  },
+
+  removeMember: async (familyId, targetUserId) => {
+    // SECURITY DEFINER RPC로 RLS 우회 + 호출자 멤버십 검증
+    const { error } = await supabase.rpc('remove_family_member', {
+      p_family_id: familyId,
+      p_target_user_id: targetUserId,
+    });
+
+    if (error) {
+      throw new Error(error.message || '가족 구성원 제거에 실패했습니다');
+    }
+
+    // 로컬 상태에서 즉시 제거 (낙관적 업데이트)
+    set({
+      members: get().members.filter(
+        (m) => !(m.family_id === familyId && m.user_id === targetUserId)
+      ),
+    });
+
+    // 서버 상태와 동기화 (백그라운드)
+    await get().loadFamily(familyId);
   },
 }));
