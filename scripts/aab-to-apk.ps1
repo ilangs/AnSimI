@@ -16,6 +16,7 @@ $bundletool = Join-Path $projectRoot "bundletool.jar"
 $aab        = Join-Path $projectRoot "app.aab"
 $apks       = Join-Path $projectRoot "app.apks"
 $output     = Join-Path $projectRoot "ansimi.apk"
+$keystore   = Join-Path $projectRoot "debug.keystore"
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
@@ -25,26 +26,26 @@ Write-Host ""
 
 # ---- [1/4] Java check ----
 Write-Host "[1/4] Checking Java..." -ForegroundColor Cyan
-$javaOk = $false
-try {
-    $null = & java -version 2>&1
-    if ($LASTEXITCODE -eq 0) { $javaOk = $true }
-} catch {
-    $javaOk = $false
-}
 
-if (-Not $javaOk) {
-    Write-Host "  [FAIL] Java is not installed or not in PATH." -ForegroundColor Red
+# Get-Command is more reliable than & java with try/catch
+$javaCmd = Get-Command java -ErrorAction SilentlyContinue
+if (-not $javaCmd) {
+    Write-Host "  [FAIL] Java is not in PATH (Get-Command failed)." -ForegroundColor Red
     Write-Host ""
     Write-Host "  Install Java (choose one):" -ForegroundColor Yellow
     Write-Host "    A) winget install EclipseAdoptium.Temurin.17.JDK" -ForegroundColor White
     Write-Host "       (then RESTART PowerShell)" -ForegroundColor Gray
     Write-Host "    B) Download from https://adoptium.net/" -ForegroundColor White
     Write-Host ""
+    Write-Host "  Already installed? Try in current shell:" -ForegroundColor Yellow
+    Write-Host "    `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')" -ForegroundColor White
+    Write-Host ""
     exit 1
 }
+$javaPath = $javaCmd.Source
 $javaVer = (& java -version 2>&1 | Select-Object -First 1)
 Write-Host "  [OK] $javaVer" -ForegroundColor Green
+Write-Host "       at $javaPath" -ForegroundColor Gray
 
 # ---- [2/4] bundletool.jar check ----
 Write-Host ""
@@ -77,14 +78,37 @@ if (-Not (Test-Path $aab)) {
 $aabSize = [math]::Round((Get-Item $aab).Length / 1MB, 1)
 Write-Host ("  [OK] app.aab ({0} MB)" -f $aabSize) -ForegroundColor Green
 
+# ---- [4a/4] Generate debug keystore if missing ----
+if (-Not (Test-Path $keystore)) {
+    Write-Host ""
+    Write-Host "[4a/4] Generating debug keystore (one-time setup)..." -ForegroundColor Cyan
+    & keytool -genkey -v -keystore $keystore -alias androiddebugkey `
+        -storepass android -keypass android `
+        -keyalg RSA -keysize 2048 -validity 10000 `
+        -dname "CN=Android Debug,O=Android,C=US" 2>&1 | Out-Null
+
+    if (-Not (Test-Path $keystore)) {
+        Write-Host "  [FAIL] Keystore generation failed" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  [OK] debug.keystore created" -ForegroundColor Green
+}
+
 # ---- [4/4] Convert ----
 Write-Host ""
-Write-Host "[4/4] Converting AAB to APK (1-2 minutes)..." -ForegroundColor Cyan
+Write-Host "[4/4] Converting AAB to signed APK (1-2 minutes)..." -ForegroundColor Cyan
 
 if (Test-Path $apks)   { Remove-Item $apks -Force }
 if (Test-Path $output) { Remove-Item $output -Force }
 
-& java -jar $bundletool build-apks --bundle="$aab" --output="$apks" --mode=universal
+& java -jar $bundletool build-apks `
+    --bundle="$aab" `
+    --output="$apks" `
+    --mode=universal `
+    --ks="$keystore" `
+    --ks-pass=pass:android `
+    --key-pass=pass:android `
+    --ks-key-alias=androiddebugkey
 
 if (-Not (Test-Path $apks)) {
     Write-Host "  [FAIL] APKS build failed" -ForegroundColor Red
