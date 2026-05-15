@@ -1,14 +1,13 @@
-# ─────────────────────────────────────────────────────────
-# AAB → Universal APK 변환 스크립트 (Windows PowerShell)
+# ============================================================
+#  AAB -> Universal APK Converter for AnSimI
 #
-# 사용법:
-#   1. bundletool 다운로드 후 C:\AnSimI\bundletool.jar 로 저장
-#      https://github.com/google/bundletool/releases
-#   2. EAS 대시보드에서 AAB 다운로드 후 C:\AnSimI\app.aab 로 저장
-#   3. 이 스크립트 실행: powershell -File scripts/aab-to-apk.ps1
+#  Usage:
+#    1. Place bundletool.jar at C:\AnSimI\bundletool.jar
+#    2. Place app.aab at C:\AnSimI\app.aab
+#    3. Run: powershell -File scripts/aab-to-apk.ps1
 #
-# 결과: C:\AnSimI\ansimi.apk 생성 (카톡 공유 → 폰 설치)
-# ─────────────────────────────────────────────────────────
+#  Result: C:\AnSimI\ansimi.apk
+# ============================================================
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -18,55 +17,83 @@ $aab        = Join-Path $projectRoot "app.aab"
 $apks       = Join-Path $projectRoot "app.apks"
 $output     = Join-Path $projectRoot "ansimi.apk"
 
-# ── 사전 검증 ─────────────────────────────────────────────
-Write-Host "🔍 사전 검증 중..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "============================================" -ForegroundColor Cyan
+Write-Host "  AAB to APK Converter (AnSimI)" -ForegroundColor Cyan
+Write-Host "============================================" -ForegroundColor Cyan
+Write-Host ""
 
-if (-Not (Test-Path $bundletool)) {
-    Write-Host "❌ bundletool.jar 파일이 없습니다." -ForegroundColor Red
-    Write-Host "   다운로드: https://github.com/google/bundletool/releases" -ForegroundColor Yellow
-    Write-Host "   위치: $bundletool" -ForegroundColor Yellow
-    exit 1
-}
-
-if (-Not (Test-Path $aab)) {
-    Write-Host "❌ app.aab 파일이 없습니다." -ForegroundColor Red
-    Write-Host "   EAS 대시보드에서 다운로드 후 위치에 저장:" -ForegroundColor Yellow
-    Write-Host "   $aab" -ForegroundColor Yellow
-    exit 1
-}
-
-# Java 확인
+# ---- [1/4] Java check ----
+Write-Host "[1/4] Checking Java..." -ForegroundColor Cyan
+$javaOk = $false
 try {
-    $javaVersion = java -version 2>&1 | Select-Object -First 1
-    Write-Host "✅ Java 발견: $javaVersion" -ForegroundColor Green
+    $null = & java -version 2>&1
+    if ($LASTEXITCODE -eq 0) { $javaOk = $true }
 } catch {
-    Write-Host "❌ Java가 설치되어 있지 않습니다." -ForegroundColor Red
-    Write-Host "   다운로드: https://adoptium.net/" -ForegroundColor Yellow
-    exit 1
+    $javaOk = $false
 }
 
-# ── 기존 파일 정리 ────────────────────────────────────────
-if (Test-Path $apks) { Remove-Item $apks -Force }
+if (-Not $javaOk) {
+    Write-Host "  [FAIL] Java is not installed or not in PATH." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Install Java (choose one):" -ForegroundColor Yellow
+    Write-Host "    A) winget install EclipseAdoptium.Temurin.17.JDK" -ForegroundColor White
+    Write-Host "       (then RESTART PowerShell)" -ForegroundColor Gray
+    Write-Host "    B) Download from https://adoptium.net/" -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
+$javaVer = (& java -version 2>&1 | Select-Object -First 1)
+Write-Host "  [OK] $javaVer" -ForegroundColor Green
+
+# ---- [2/4] bundletool.jar check ----
+Write-Host ""
+Write-Host "[2/4] Checking bundletool.jar..." -ForegroundColor Cyan
+if (-Not (Test-Path $bundletool)) {
+    Write-Host "  [FAIL] bundletool.jar not found." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Auto download:" -ForegroundColor Yellow
+    Write-Host "    Invoke-WebRequest -Uri 'https://github.com/google/bundletool/releases/download/1.18.0/bundletool-all-1.18.0.jar' -OutFile '$bundletool'" -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
+$btSize = [math]::Round((Get-Item $bundletool).Length / 1MB, 1)
+Write-Host ("  [OK] bundletool.jar ({0} MB)" -f $btSize) -ForegroundColor Green
+
+# ---- [3/4] app.aab check ----
+Write-Host ""
+Write-Host "[3/4] Checking app.aab..." -ForegroundColor Cyan
+if (-Not (Test-Path $aab)) {
+    Write-Host "  [FAIL] app.aab not found." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Download AAB from EAS Dashboard, then save as:" -ForegroundColor Yellow
+    Write-Host "    $aab" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Or auto download (latest build URL):" -ForegroundColor Yellow
+    Write-Host "    Invoke-WebRequest -Uri 'https://expo.dev/artifacts/eas/b8uZrmXLXGjJQ466gLnzDT.aab' -OutFile '$aab'" -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
+$aabSize = [math]::Round((Get-Item $aab).Length / 1MB, 1)
+Write-Host ("  [OK] app.aab ({0} MB)" -f $aabSize) -ForegroundColor Green
+
+# ---- [4/4] Convert ----
+Write-Host ""
+Write-Host "[4/4] Converting AAB to APK (1-2 minutes)..." -ForegroundColor Cyan
+
+if (Test-Path $apks)   { Remove-Item $apks -Force }
 if (Test-Path $output) { Remove-Item $output -Force }
 
-# ── APKS 빌드 ─────────────────────────────────────────────
-Write-Host ""
-Write-Host "📦 AAB → APKS 변환 중... (약 1~2분)" -ForegroundColor Cyan
-java -jar $bundletool build-apks `
-    --bundle=$aab `
-    --output=$apks `
-    --mode=universal
+& java -jar $bundletool build-apks --bundle="$aab" --output="$apks" --mode=universal
 
 if (-Not (Test-Path $apks)) {
-    Write-Host "❌ APKS 빌드 실패" -ForegroundColor Red
+    Write-Host "  [FAIL] APKS build failed" -ForegroundColor Red
     exit 1
 }
 
-# ── APKS는 ZIP이므로 압축 해제 ───────────────────────────
-Write-Host "📂 APKS 압축 해제 중..." -ForegroundColor Cyan
 $tempDir = Join-Path $projectRoot "_apks_temp"
 if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
-Expand-Archive -Path $apks -DestinationPath $tempDir
+Expand-Archive -Path $apks -DestinationPath $tempDir -Force
 
 $universalApk = Join-Path $tempDir "universal.apk"
 if (Test-Path $universalApk) {
@@ -74,17 +101,21 @@ if (Test-Path $universalApk) {
     Remove-Item $tempDir -Recurse -Force
     Remove-Item $apks -Force
 } else {
-    Write-Host "❌ universal.apk 를 찾을 수 없습니다." -ForegroundColor Red
+    Write-Host "  [FAIL] universal.apk not found in APKS" -ForegroundColor Red
     exit 1
 }
 
-# ── 완료 ─────────────────────────────────────────────────
-$size = (Get-Item $output).Length / 1MB
+# ---- Done ----
+$apkSize = [math]::Round((Get-Item $output).Length / 1MB, 1)
 Write-Host ""
-Write-Host "✅ 완료!" -ForegroundColor Green
-Write-Host "   파일: $output" -ForegroundColor Green
-Write-Host "   크기: $([math]::Round($size, 1)) MB" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Green
+Write-Host "  SUCCESS!" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "📱 폰 설치 방법:" -ForegroundColor Cyan
-Write-Host "   1. ansimi.apk 를 카톡 '나에게 보내기'로 전송" -ForegroundColor White
-Write-Host "   2. 폰에서 다운로드 → 알 수 없는 출처 허용 → 설치" -ForegroundColor White
+Write-Host ("  File: {0}" -f $output) -ForegroundColor White
+Write-Host ("  Size: {0} MB" -f $apkSize) -ForegroundColor White
+Write-Host ""
+Write-Host "  Install on phone:" -ForegroundColor Cyan
+Write-Host "    1. Send ansimi.apk via KakaoTalk (to yourself)" -ForegroundColor White
+Write-Host "    2. On phone: Download -> Allow unknown sources -> Install" -ForegroundColor White
+Write-Host ""
