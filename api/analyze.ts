@@ -96,11 +96,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message, userId, familyId, urls: rawUrls } = req.body as {
+  const { message, userId, familyId, urls: rawUrls, source, senderNumber } = req.body as {
     message: string;
     userId: string;
     familyId: string;
     urls?: string[];
+    source?: 'auto' | 'manual';      // 'auto' = NotificationListener, 'manual' = 사용자 입력
+    senderNumber?: string;
   };
 
   if (!message || typeof message !== 'string' || !userId || !familyId) {
@@ -232,6 +234,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (dbError) {
       console.error('DB 저장 오류:', JSON.stringify(dbError));
     }
+
+    // 2-2. 자동 감지 + 위험도 51+ 시 차단함(blocked_messages) INSERT
+    //      - 부모 폰의 NotificationListener에서 호출된 경우만 차단 워크플로 진입
+    //      - 원문은 24시간 후 자동 삭제 (트리거 + cleanup_expired_blocked_messages)
+    let blockedMessageId: string | null = null;
+    if (source === 'auto' && analysisResult.score >= 51) {
+      try {
+        const { data: blocked, error: blockedErr } = await supabase
+          .from('blocked_messages')
+          .insert({
+            parent_user_id: userId,
+            family_id: familyId,
+            risk_score: analysisResult.score,
+            risk_level: analysisResult.level,
+            reasons: analysisResult.reasons,
+            keywords: analysisResult.keywords,
+            action: analysisResult.action,
+            content_text: message,    // 24h 후 자동 삭제
+            sender_number: senderNumber ?? null,
+            message_preview: messagePreview,
+            status: 'pending',
+          })
+          .select('id')
+          .single();
+        if (blockedErr) {
+          console.error('blocked_messages 저장 오류:', JSON.stringify(blockedErr));
+        } else if (blocked) {
+          blockedMessageId = blocked.id;
+        }
+      } catch (e) {
+        console.error('blocked_messages insert 예외:', e);
+      }
+    }
+
     // 3. 위험 감지 시 알림 발송
     // - 부모가 분석 → 자녀에게 알림 (자녀가 부모 폰 상황 인지)
     // - 자녀가 분석 → 자녀 본인만 (부모님께 걱정 안 끼치기 위해 부모 알림 미발송)
@@ -322,6 +358,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       ...analysisResult,
       messageId: savedMessage?.id ?? null,
+      blockedMessageId,             // Kotlin 측에서 차단 알림 표시 시 참조
       linkAnalysis: {
         urls: urlsInput,            // 메모리 응답용 — DB 미저장
         maliciousCount,

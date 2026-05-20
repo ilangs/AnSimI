@@ -31,9 +31,17 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -51,6 +59,7 @@ class SmsNotificationListenerService : NotificationListenerService() {
             "com.kttech.ims",
         )
         private const val CHANNEL_ID = "ansimi-alerts"
+        private const val CHANNEL_BLOCKED_ID = "ansimi-blocked"
         private const val MIN_LENGTH = 10
         // 중복 분석 방지 (30초 이내 동일 텍스트)
         private val recentKeys = mutableMapOf<String, Long>()
@@ -68,6 +77,7 @@ class SmsNotificationListenerService : NotificationListenerService() {
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim() ?: ""
         val text    = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim() ?: ""
         val smsContent = if (bigText.length > text.length) bigText else text
+        val senderTitle = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim() ?: ""
 
         if (smsContent.length < MIN_LENGTH) return
 
@@ -78,35 +88,176 @@ class SmsNotificationListenerService : NotificationListenerService() {
         recentKeys[key] = now
         recentKeys.entries.removeAll { now - it.value > 60_000 }
 
+        val notificationKey = sbn.key
+
         Thread {
             try {
-                val result = callAnalyzeApi(apiUrl, smsContent, userId, familyId)
+                val result = callAnalyzeApi(apiUrl, smsContent, userId, familyId, senderTitle)
                 val score = result.optInt("score", 0)
-                if (score >= 26) showResultNotification(result, smsContent)
+                when {
+                    // 위험 51+ : 원본 알림 가리고 차단 알림으로 교체
+                    score >= 51 -> handleBlockedSms(notificationKey, smsContent, result)
+                    // 주의 26~50 : 일반 결과 알림 추가 (원본 알림은 유지)
+                    score >= 26 -> showResultNotification(result, smsContent)
+                    // 안전 : 아무것도 안 함
+                }
             } catch (_: Exception) {}
         }.start()
     }
 
     private fun callAnalyzeApi(
-        apiUrl: String, message: String, userId: String, familyId: String
+        apiUrl: String, message: String, userId: String, familyId: String, senderTitle: String
     ): JSONObject {
         val conn = (URL("\$apiUrl/analyze").openConnection() as HttpURLConnection).also {
             it.requestMethod = "POST"
             it.setRequestProperty("Content-Type", "application/json")
             it.doOutput = true
             it.connectTimeout = 15_000
-            it.readTimeout    = 30_000
+            it.readTimeout    = 45_000
         }
         val body = JSONObject().apply {
             put("message",  message)
             put("userId",   userId)
             put("familyId", familyId)
+            put("source",   "auto")               // 차단함 INSERT 트리거
+            if (senderTitle.isNotEmpty()) {
+                put("senderNumber", senderTitle)  // 발신자 (제목) 정보
+            }
         }.toString()
         OutputStreamWriter(conn.outputStream).use { it.write(body) }
         val code = conn.responseCode
         val resp = conn.inputStream.bufferedReader().readText()
         if (code != 200) throw Exception("HTTP \$code")
         return JSONObject(resp)
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // 위험문자 차단 처리: 원본 알림 취소 + 이미지 알림 표시
+    // ────────────────────────────────────────────────────────────
+    private fun handleBlockedSms(originalKey: String, smsContent: String, result: JSONObject) {
+        try {
+            // 1) 텍스트 → 비트맵 렌더링 (URL 클릭 차단 효과)
+            val bitmap = renderTextToBitmap(smsContent)
+
+            // 2) 원본 SMS 알림 취소 시도 (제조사별 정책 다름)
+            try {
+                cancelNotification(originalKey)
+            } catch (_: Exception) {}
+
+            // 3) 차단 알림 표시 (이미지 형태)
+            showBlockedNotification(bitmap, result)
+        } catch (e: Exception) {
+            // 비트맵 렌더링 실패 시 일반 결과 알림으로 fallback
+            showResultNotification(result, smsContent)
+        }
+    }
+
+    private fun renderTextToBitmap(text: String): Bitmap {
+        val width = 1000
+        val padding = 60
+        val textPaint = TextPaint().apply {
+            color = Color.parseColor("#1F2937")
+            textSize = 40f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            isAntiAlias = true
+        }
+
+        // StaticLayout으로 자동 줄바꿈 처리 (한글 지원)
+        val staticLayout: StaticLayout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            StaticLayout.Builder
+                .obtain(text, 0, text.length, textPaint, width - padding * 2)
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(10f, 1.2f)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            StaticLayout(text, textPaint, width - padding * 2,
+                Layout.Alignment.ALIGN_NORMAL, 1.2f, 10f, false)
+        }
+
+        val height = staticLayout.height + padding * 2 + 80  // 하단 경고 텍스트 영역
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // 흰색 배경 + 빨간 테두리 (위험 강조)
+        canvas.drawColor(Color.WHITE)
+        val borderPaint = Paint().apply {
+            color = Color.parseColor("#DC2626")
+            style = Paint.Style.STROKE
+            strokeWidth = 8f
+        }
+        canvas.drawRect(4f, 4f, width - 4f, height - 4f, borderPaint)
+
+        // 본문 텍스트 그리기
+        canvas.save()
+        canvas.translate(padding.toFloat(), padding.toFloat())
+        staticLayout.draw(canvas)
+        canvas.restore()
+
+        // 하단 경고 문구
+        val warnPaint = Paint().apply {
+            color = Color.parseColor("#DC2626")
+            textSize = 32f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+            isAntiAlias = true
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(
+            "🔒 위험 감지 — 자녀 확인 전까지 링크 차단됨",
+            (width / 2).toFloat(),
+            (height - padding / 2).toFloat(),
+            warnPaint
+        )
+
+        return bitmap
+    }
+
+    private fun showBlockedNotification(bitmap: Bitmap, result: JSONObject) {
+        val score  = result.optInt("score", 0)
+        val title = if (score >= 76) "🚨 위험 문자 차단됨" else "⚠️ 의심 문자 차단됨"
+        val body  = "자녀 확인 대기 중 — 탭하여 차단함에서 보기"
+
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_BLOCKED_ID,
+                    "안심이 차단 알림",
+                    NotificationManager.IMPORTANCE_HIGH
+                )
+            )
+        }
+
+        val launch = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("openTab", "blocked-inbox")
+        }
+        val pi = PendingIntent.getActivity(
+            this, 0, launch ?: Intent(),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notif = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_BLOCKED_ID)
+        } else {
+            @Suppress("DEPRECATION") Notification.Builder(this)
+        }.apply {
+            setSmallIcon(android.R.drawable.ic_lock_lock)
+            setContentTitle(title)
+            setContentText(body)
+            setLargeIcon(bitmap)
+            setStyle(
+                Notification.BigPictureStyle()
+                    .bigPicture(bitmap)
+                    .bigLargeIcon(null as Bitmap?)
+                    .setBigContentTitle(title)
+                    .setSummaryText(body)
+            )
+            setContentIntent(pi)
+            setAutoCancel(true)
+        }.build()
+
+        nm.notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notif)
     }
 
     private fun showResultNotification(result: JSONObject, originalText: String) {

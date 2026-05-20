@@ -68,6 +68,14 @@ export default function ParentLayout() {
         }}
       />
       <Tabs.Screen
+        name="blocked-inbox"
+        options={{
+          title: '차단함',
+          tabBarIcon: ({ color }) => <TabIcon emoji="🛡️" color={color} />,
+          tabBarAccessibilityLabel: '차단된 위험 문자함',
+        }}
+      />
+      <Tabs.Screen
         name="alert"
         options={{
           title: '위험 문자',

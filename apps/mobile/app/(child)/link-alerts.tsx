@@ -1,4 +1,4 @@
-// 자녀 앱: 부모 폰 위험 링크 알림 관리 화면
+// 자녀 앱: 부모 폰 위험 링크 알림 + 차단 문자 검토 화면
 import React, { useCallback, useState } from 'react';
 import {
   View,
@@ -11,8 +11,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { useLinkApproval, LinkAlert } from '@/hooks/useLinkApproval';
+import { useBlockedMessages, BlockedMessage } from '@/hooks/useBlockedMessages';
 import { useOcrAnalysis } from '@/hooks/useOcrAnalysis';
 import LinkAlertCard from '@/components/LinkAlertCard';
+import BlockedMessageReviewCard from '@/components/BlockedMessageReviewCard';
 
 export default function LinkAlertsScreen() {
   const {
@@ -24,8 +26,24 @@ export default function LinkAlertsScreen() {
     reportLink,
     openKisaReport,
   } = useLinkApproval();
+  const {
+    blocked,
+    pendingCount: blockedPending,
+    isLoading: blockedLoading,
+    refresh: refreshBlocked,
+    approveMessage,
+    reportMessage,
+  } = useBlockedMessages();
   const { analyzeImage } = useOcrAnalysis();
   const [imageMap] = useState<Map<string, string>>(new Map());
+
+  // 차단 메시지 중 pending 만 검토 화면에 표시
+  const pendingBlocked = blocked.filter((b) => b.status === 'pending');
+
+  // pull-to-refresh 시 두 소스 모두 갱신
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refresh(), refreshBlocked()]);
+  }, [refresh, refreshBlocked]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -72,35 +90,68 @@ export default function LinkAlertsScreen() {
         renderItem={renderItem}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
-            onRefresh={refresh}
+            refreshing={isLoading || blockedLoading}
+            onRefresh={handleRefresh}
             tintColor={Colors.brand}
           />
         }
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.title}>부모님 폰 링크 알림</Text>
-            <Text style={styles.summary}>
-              오늘 감지 {todayCount}건 / 위험 {todayHigh}건
-            </Text>
-            {pendingCount > 0 && (
-              <View style={styles.pendingBox}>
-                <Text style={styles.pendingText}>
-                  ⏳ 확인 대기 중인 알림 {pendingCount}건
+          <View>
+            <View style={styles.header}>
+              <Text style={styles.title}>부모님 폰 보호 센터</Text>
+              <Text style={styles.summary}>
+                오늘 감지 {todayCount}건 / 위험 {todayHigh}건
+              </Text>
+              {(pendingCount > 0 || blockedPending > 0) && (
+                <View style={styles.pendingBox}>
+                  <Text style={styles.pendingText}>
+                    ⏳ 확인 대기: 링크 {pendingCount}건 · 차단 문자 {blockedPending}건
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity onPress={openKisaReport} style={styles.kisaBtn}>
+                <Text style={styles.kisaText}>🚨 KISA 보호나라 신고 페이지</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 차단 문자 검토 섹션 */}
+            {pendingBlocked.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  🛡️ 차단된 문자 검토 ({pendingBlocked.length}건)
                 </Text>
+                <Text style={styles.sectionDesc}>
+                  부모님 폰에서 자동 차단된 위험 문자에요. 검토 후 결정해주세요.
+                </Text>
+                <View style={styles.blockedList}>
+                  {pendingBlocked.map((item) => (
+                    <BlockedMessageReviewCard
+                      key={item.id}
+                      item={item}
+                      onApprove={approveMessage}
+                      onReport={reportMessage}
+                    />
+                  ))}
+                </View>
               </View>
             )}
-            <TouchableOpacity onPress={openKisaReport} style={styles.kisaBtn}>
-              <Text style={styles.kisaText}>🚨 KISA 보호나라 신고 페이지</Text>
-            </TouchableOpacity>
+
+            {/* 링크 알림 섹션 헤더 */}
+            {alerts.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🔗 링크 알림</Text>
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🛡️</Text>
-            <Text style={styles.emptyTitle}>오늘 위험 링크가 없었어요</Text>
-            <Text style={styles.emptyDesc}>부모님 폰이 안전합니다</Text>
-          </View>
+          pendingBlocked.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>🛡️</Text>
+              <Text style={styles.emptyTitle}>오늘 위험 문자가 없었어요</Text>
+              <Text style={styles.emptyDesc}>부모님 폰이 안전합니다</Text>
+            </View>
+          ) : null
         }
         contentContainerStyle={styles.content}
       />
@@ -138,4 +189,15 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 56 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary },
   emptyDesc: { fontSize: 14, color: Colors.textSecondary },
+
+  // 섹션 헤더
+  section: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    gap: 4,
+  },
+  sectionTitle: { fontSize: 17, fontWeight: '800', color: Colors.textPrimary },
+  sectionDesc: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
+  blockedList: { paddingTop: 8, gap: 10 },
 });
