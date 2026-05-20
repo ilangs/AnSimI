@@ -14,3 +14,20 @@ firebase-adminsdk.json
 apps/mobile/expo-env.d.ts
 docs/
 .claude/
+
+# Android build artifacts (binary, never commit)
+*.aab
+*.apk
+*.apks
+*.keystore
+bundletool.jar
+app.zip
+_temp/
+_apks_temp/
+
+# Android Studio native build outputs
+apps/mobile/android/app/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
