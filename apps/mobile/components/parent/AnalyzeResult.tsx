@@ -3,6 +3,7 @@ import { AnalyzeResponse } from '@/types';
 import { getRiskConfig } from '@/constants/riskLevels';
 import { Colors } from '@/constants/colors';
 import Badge from '@/components/ui/Badge';
+import { useAuthStore } from '@/stores/authStore';
 
 interface AnalyzeResultProps {
   result: AnalyzeResponse;
@@ -10,13 +11,36 @@ interface AnalyzeResultProps {
 }
 
 export default function AnalyzeResult({ result, originalText }: AnalyzeResultProps) {
+  const { user } = useAuthStore();
+  const isChild = user?.role === 'child';
   const config = getRiskConfig(result.level);
 
+  // 역할별 안내 문구 (자녀는 부모님에게 부담 안 끼치도록 '신고하세요' 사용)
   const summaryMap = {
-    '안전':    { emoji: '✅', headline: '안전한 문자예요', desc: '특별히 의심스러운 내용이 없어요.' },
-    '주의':    { emoji: '⚠️', headline: '조금 주의하세요', desc: '일부 의심되는 부분이 있어요. 신중하게 확인하세요.' },
-    '위험':    { emoji: '🚨', headline: '위험한 문자일 수 있어요', desc: '보이스피싱 가능성이 높아요. 무시하세요.' },
-    '매우위험': { emoji: '🛑', headline: '이 문자는 사기예요!', desc: '즉시 차단하고 자녀에게 알리세요.' },
+    '안전': {
+      emoji: '✅',
+      headline: '안전한 문자예요',
+      desc: '특별히 의심스러운 내용이 없어요.',
+    },
+    '주의': {
+      emoji: '⚠️',
+      headline: '조금 주의하세요',
+      desc: '일부 의심되는 부분이 있어요. 신중하게 확인하세요.',
+    },
+    '위험': {
+      emoji: '🚨',
+      headline: '위험한 문자일 수 있어요',
+      desc: isChild
+        ? '보이스피싱 가능성이 높아요. 무시하고 신고하세요.'
+        : '보이스피싱 가능성이 높아요. 무시하세요.',
+    },
+    '매우위험': {
+      emoji: '🛑',
+      headline: '이 문자는 사기예요!',
+      desc: isChild
+        ? '즉시 차단하고 신고하세요.'
+        : '즉시 차단하고 자녀에게 알리세요.',
+    },
   }[result.level];
 
   return (
