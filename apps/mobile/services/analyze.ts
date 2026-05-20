@@ -3,8 +3,9 @@ import { AnalyzeRequest, AnalyzeResponse } from '@/types';
 const API_URL = process.env.EXPO_PUBLIC_API_URL!;
 
 // 단일 fetch 타임아웃 (밀리초)
-// OpenAI 콜드 스타트 + 분석 시간 고려하여 30초로 설정
-const FETCH_TIMEOUT_MS = 30_000;
+// 실제 SMS는 길거나 URL 포함으로 분석 시간 증가 (10~25초)
+// Vercel function maxDuration 60초 + 클라이언트 45초 (여유 15초)
+const FETCH_TIMEOUT_MS = 45_000;
 
 /**
  * AbortController 기반 fetch with timeout

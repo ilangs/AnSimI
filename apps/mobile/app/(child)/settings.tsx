@@ -22,6 +22,13 @@ import { supabase } from '@/services/supabase';
 import { startSubscription, cancelSubscription, SUBSCRIPTION_PRICE } from '@/services/payment';
 import { useAutoAnalyze } from '@/hooks/useAutoAnalyze';
 
+// ─────────────────────────────────────────────────────────
+// 🚧 프로토타입 무료 운영 플래그
+// true  = 결제 UI 숨김, "무료 운영 중" 안내 배너 표시
+// false = 정상 구독 결제 동작 (출시 시점에 변경)
+// ─────────────────────────────────────────────────────────
+const PROTOTYPE_FREE_MODE = true;
+
 export default function ChildSettingsScreen() {
   const router = useRouter();
   const { user, family, signOut, setFamily } = useAuthStore();
@@ -177,11 +184,19 @@ export default function ChildSettingsScreen() {
         <Section title="계정">
           <InfoRow label="이름" value={user?.name ?? '-'} />
           <InfoRow label="이메일" value={user?.email ?? '-'} />
-          <InfoRow
-            label="구독 상태"
-            value={user?.is_subscribed ? '✅ 구독 중 (₩2,900/월)' : '❌ 미구독'}
-            valueColor={user?.is_subscribed ? Colors.safe : Colors.danger}
-          />
+          {PROTOTYPE_FREE_MODE ? (
+            <InfoRow
+              label="이용 상태"
+              value="🎁 프로토타입 무료 이용 중"
+              valueColor={Colors.brand}
+            />
+          ) : (
+            <InfoRow
+              label="구독 상태"
+              value={user?.is_subscribed ? '✅ 구독 중 (₩2,900/월)' : '❌ 미구독'}
+              valueColor={user?.is_subscribed ? Colors.safe : Colors.danger}
+            />
+          )}
         </Section>
 
         {/* ── 가족 연결 ── */}
@@ -263,8 +278,23 @@ export default function ChildSettingsScreen() {
           />
         </Section>
 
-        {/* ── 구독 관리 ── */}
-        {!user?.is_subscribed ? (
+        {/* ── 구독 관리 / 프로토타입 안내 ── */}
+        {PROTOTYPE_FREE_MODE ? (
+          <Section title="이용 안내">
+            <View style={styles.prototypeCard}>
+              <Text style={styles.prototypeIcon}>🎁</Text>
+              <Text style={styles.prototypeTitle}>프로토타입 무료 운영 중</Text>
+              <Text style={styles.prototypeDesc}>
+                현재 안심이는 프로토타입 테스트 기간으로{'\n'}
+                모든 기능을 <Text style={styles.prototypeBold}>무료로 이용</Text>하실 수 있어요.
+              </Text>
+              <Text style={styles.prototypeNote}>
+                정식 출시 후 구독 안내가 시작됩니다.{'\n'}
+                소중한 피드백 부탁드려요 💚
+              </Text>
+            </View>
+          </Section>
+        ) : !user?.is_subscribed ? (
           <Section title="구독 관리">
             <View style={styles.subscribeCard}>
               <Text style={styles.subscribePlan}>안심이 자녀 플랜</Text>
@@ -478,6 +508,39 @@ const styles = StyleSheet.create({
   // 가족 추가 버튼
   addFamilyBtn: { padding: 16, alignItems: 'center' },
   addFamilyBtnText: { fontSize: 15, color: Colors.brand, fontWeight: '700' },
+
+  // 프로토타입 무료 안내 카드
+  prototypeCard: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: (Colors as any).brandLight ?? '#E8F8F2',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.brand,
+    margin: 4,
+  },
+  prototypeIcon: { fontSize: 48, marginBottom: 8 },
+  prototypeTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.brand,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  prototypeDesc: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  prototypeBold: { fontWeight: '800', color: Colors.brand },
+  prototypeNote: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 
   // 구독 카드
   subscribeCard: {
