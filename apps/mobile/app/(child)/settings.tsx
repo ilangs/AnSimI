@@ -250,7 +250,9 @@ export default function ChildSettingsScreen() {
                 </Text>
               </View>
               <View style={[styles.autoStatus, isEnabled ? styles.autoOn : styles.autoOff]}>
-                <Text style={styles.autoStatusText}>{isEnabled ? '활성' : '비활성'}</Text>
+                <Text style={[styles.autoStatusText, isEnabled ? styles.autoStatusTextOn : styles.autoStatusTextOff]}>
+                  {isEnabled ? '✓ 사용 중' : '○ 미사용 중'}
+                </Text>
               </View>
             </TouchableOpacity>
           </Section>
@@ -581,10 +583,12 @@ const styles = StyleSheet.create({
   autoLeft: { flex: 1, gap: 3 },
   autoTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
   autoDesc: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
-  autoStatus: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  autoOn: { backgroundColor: Colors.brandLight },
+  autoStatus: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, minWidth: 88, alignItems: 'center' },
+  autoOn: { backgroundColor: Colors.brandLight ?? '#E8F8F2' },
   autoOff: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
-  autoStatusText: { fontSize: 13, fontWeight: '700', color: Colors.brand },
+  autoStatusText: { fontSize: 13, fontWeight: '700' },
+  autoStatusTextOn: { color: Colors.brand },
+  autoStatusTextOff: { color: Colors.textSecondary },
 
   // 구독 해지
   cancelSubBtn: { padding: 16, alignItems: 'center' },

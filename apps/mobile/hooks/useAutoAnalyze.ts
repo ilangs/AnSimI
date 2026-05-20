@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { NativeModules, Platform } from 'react-native';
+import { AppState, NativeModules, Platform } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useAuthStore } from '@/stores/authStore';
 import { extractUrls, extractDomainHint } from '@/utils/linkUtils';
@@ -48,6 +48,18 @@ export function useAutoAnalyze() {
       return false;
     }
   }, []);
+
+  // 앱이 다시 포어그라운드로 돌아올 때 권한 자동 재확인
+  // (사용자가 안드로이드 설정 화면에서 알림 액세스 권한을 켜고 돌아온 경우 즉시 반영)
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        checkPermission();
+      }
+    });
+    return () => sub.remove();
+  }, [checkPermission]);
 
   // 알림 접근 설정 화면 열기
   const openSettings = useCallback(async () => {
