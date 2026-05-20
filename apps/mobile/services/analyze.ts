@@ -3,7 +3,8 @@ import { AnalyzeRequest, AnalyzeResponse } from '@/types';
 const API_URL = process.env.EXPO_PUBLIC_API_URL!;
 
 // 단일 fetch 타임아웃 (밀리초)
-const FETCH_TIMEOUT_MS = 15_000;
+// OpenAI 콜드 스타트 + 분석 시간 고려하여 30초로 설정
+const FETCH_TIMEOUT_MS = 30_000;
 
 /**
  * AbortController 기반 fetch with timeout
