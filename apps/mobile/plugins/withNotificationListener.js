@@ -273,6 +273,9 @@ module.exports = function withNotificationListener(config) {
   }]);
 
   // 3. MainApplication.kt에 AnsimiPackage 등록
+  //    Expo SDK 51+ 구버전: 'val packages = PackageList(this).packages'
+  //    Expo SDK 54+ 신버전: 'PackageList(this).packages.apply { ... }'
+  //    → 두 형식 모두 처리하기 위해 다단계 매칭
   config = withDangerousMod(config, ['android', (c) => {
     const mainAppPath = path.join(
       c.modRequest.platformProjectRoot,
@@ -283,10 +286,34 @@ module.exports = function withNotificationListener(config) {
     let content = fs.readFileSync(mainAppPath, 'utf8');
     if (content.includes('AnsimiPackage')) return c; // 이미 등록됨
 
-    content = content.replace(
-      'val packages = PackageList(this).packages',
-      'val packages = PackageList(this).packages\n        packages.add(AnsimiPackage())'
-    );
+    let modified = false;
+
+    // 패턴 A: Expo SDK 54+ — `.apply { ... }` 블록 안에 add() 호출
+    const applyPattern = /(PackageList\(this\)\.packages\.apply\s*\{[^}]*?)(\n\s*\})/;
+    if (applyPattern.test(content)) {
+      content = content.replace(applyPattern, (_, before, after) => {
+        return `${before}\n              add(AnsimiPackage())${after}`;
+      });
+      modified = true;
+    }
+
+    // 패턴 B: Expo SDK 51 등 구버전 — `val packages = PackageList(this).packages`
+    if (!modified && content.includes('val packages = PackageList(this).packages')) {
+      content = content.replace(
+        'val packages = PackageList(this).packages',
+        'val packages = PackageList(this).packages\n        packages.add(AnsimiPackage())'
+      );
+      modified = true;
+    }
+
+    if (!modified) {
+      console.warn(
+        '[withNotificationListener] MainApplication.kt에서 packages 등록 위치를 찾지 못했습니다. ' +
+        '수동으로 add(AnsimiPackage()) 추가 필요.'
+      );
+      return c;
+    }
+
     fs.writeFileSync(mainAppPath, content);
     return c;
   }]);
