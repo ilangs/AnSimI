@@ -196,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (safeBrowsingHit) {
         if (analysisResult.score < 76) analysisResult.score = 90;
         analysisResult.level = '매우위험';
-        if (!analysisResult.reasons.some((r) => r.includes('피싱 사이트'))) {
+        if (!analysisResult.reasons.some((r: string) => r.includes('피싱 사이트'))) {
           analysisResult.reasons.unshift('알려진 피싱 사이트 포함 (Google Safe Browsing 매칭)');
         }
       }

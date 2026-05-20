@@ -176,7 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify(messages),
     });
 
-    const pushData = await pushRes.json();
+    const pushData = (await pushRes.json()) as { data?: any[] };
 
     // 4. 만료·무효 토큰 자동 정리
     const expiredUserIds: string[] = [];

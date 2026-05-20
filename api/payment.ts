@@ -62,7 +62,7 @@ async function handleConfirm(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({ authKey, customerKey }),
     });
 
-    const billing = await billingRes.json();
+    const billing = (await billingRes.json()) as { billingKey?: string; message?: string };
     if (!billingRes.ok) {
       console.error('빌링키 발급 실패:', billing);
       return res.status(400).json({ error: billing.message ?? '결제 실패' });
@@ -88,7 +88,7 @@ async function handleConfirm(req: VercelRequest, res: VercelResponse) {
       }),
     });
 
-    const payment = await payRes.json();
+    const payment = (await payRes.json()) as { paymentKey?: string; message?: string };
     if (!payRes.ok) {
       console.error('첫 결제 실패:', payment);
       return res.status(400).json({ error: payment.message ?? '결제 실패' });
@@ -142,7 +142,7 @@ async function handleBilling(req: VercelRequest, res: VercelResponse) {
       }),
     });
 
-    const payment = await payRes.json();
+    const payment = (await payRes.json()) as { paymentKey?: string; message?: string };
     if (!payRes.ok) {
       await supabase.from('users').update({ is_subscribed: false }).eq('id', userId);
       return res.status(400).json({ error: payment.message ?? '갱신 결제 실패' });
