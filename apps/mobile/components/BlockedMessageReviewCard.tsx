@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { BlockedMessage } from '@/hooks/useBlockedMessages';
+import { splitTextByUrls, extractDomainHint } from '@/utils/linkUtils';
 
 interface Props {
   item: BlockedMessage;
@@ -27,6 +28,53 @@ function formatRelativeTime(iso: string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
   return new Date(iso).toLocaleDateString('ko-KR');
+}
+
+/**
+ * 자녀 검토용 안전 텍스트 컴포넌트
+ * - 일반 텍스트: 그대로 표시
+ * - URL: 🔒 prefix + 빨간 박스 + 클릭 절대 불가 (onPress 없음, selectable 없음)
+ * - URL 도메인 정보만 노출하여 자녀가 판단 가능
+ *
+ * 동작:
+ *   "[금감원] 계좌정지 http://bit.ly/scam"
+ * → "[금감원] 계좌정지 [🔒 bit.ly (클릭 차단됨)]"
+ */
+function SafeReviewText({ text }: { text: string }) {
+  const segments = splitTextByUrls(text);
+
+  const showUrlInfo = (url: string) => {
+    const domain = extractDomainHint(url);
+    Alert.alert(
+      '🔒 차단된 링크',
+      `이 링크는 안전 확인 전까지 클릭이 차단됩니다.\n\n` +
+        `도메인 미리보기:\n${domain}...\n\n` +
+        `링크 자체가 의심스러우면 [위험 신고]를 눌러주세요.`,
+      [{ text: '확인' }]
+    );
+  };
+
+  return (
+    <Text style={styles.contentText}>
+      {segments.map((seg, i) => {
+        if (seg.type === 'text') {
+          return <Text key={i}>{seg.value}</Text>;
+        }
+        // URL 부분: 클릭 시 안내 다이얼로그만 (실제 URL 이동 X)
+        const domain = extractDomainHint(seg.value);
+        return (
+          <Text
+            key={i}
+            style={styles.maskedUrl}
+            onPress={() => showUrlInfo(seg.value)}
+            suppressHighlighting
+          >
+            {' '}[🔒 {domain} 클릭차단]{' '}
+          </Text>
+        );
+      })}
+    </Text>
+  );
 }
 
 export default function BlockedMessageReviewCard({ item, onApprove, onReport }: Props) {
@@ -84,12 +132,17 @@ export default function BlockedMessageReviewCard({ item, onApprove, onReport }: 
         <Text style={styles.sender}>발신: {item.sender_number}</Text>
       )}
 
-      {/* 본문 (자녀는 원문 전체 볼 수 있음) */}
+      {/* 본문 (자녀는 원문 전체 볼 수 있음, URL은 클릭 차단) */}
       <View style={styles.contentBox}>
-        <Text style={styles.contentLabel}>부모님께 도착한 문자:</Text>
-        <Text style={styles.contentText} selectable>
-          {item.content_text ?? `(미리보기) ${item.message_preview}`}
-        </Text>
+        <View style={styles.contentLabelRow}>
+          <Text style={styles.contentLabel}>부모님께 도착한 문자</Text>
+          <Text style={styles.contentLabelHint}>🔒 링크 클릭 차단됨</Text>
+        </View>
+        {item.content_text ? (
+          <SafeReviewText text={item.content_text} />
+        ) : (
+          <Text style={styles.contentText}>(미리보기) {item.message_preview}</Text>
+        )}
       </View>
 
       {/* AI 판단 근거 */}
@@ -151,8 +204,19 @@ const styles = StyleSheet.create({
   sender: { fontSize: 13, color: Colors.textSecondary },
 
   contentBox: { backgroundColor: Colors.white, borderRadius: 10, padding: 12, gap: 6 },
+  contentLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   contentLabel: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
-  contentText: { fontSize: 14, color: Colors.textPrimary, lineHeight: 22 },
+  contentLabelHint: { fontSize: 11, fontWeight: '600', color: Colors.danger },
+  contentText: { fontSize: 14, color: Colors.textPrimary, lineHeight: 24 },
+  maskedUrl: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.danger,
+    backgroundColor: Colors.dangerBg,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
 
   reasonsBox: { backgroundColor: Colors.white, borderRadius: 10, padding: 12, gap: 4 },
   reasonsLabel: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary, marginBottom: 4 },

@@ -60,6 +60,27 @@ const ANALYSIS_SYSTEM_PROMPT = `
 type RiskLevel = '안전' | '주의' | '위험' | '매우위험';
 const VALID_LEVELS: RiskLevel[] = ['안전', '주의', '위험', '매우위험'];
 
+// URL 마스킹 정규식 — 푸시 알림 body 안전 처리용
+const URL_REGEX_SERVER =
+  /(https?:\/\/[^\s<>"]+|bit\.ly\/[^\s<>"]+|naver\.me\/[^\s<>"]+|han\.gl\/[^\s<>"]+|tinyurl\.com\/[^\s<>"]+|me2\.do\/[^\s<>"]+)/gi;
+
+/**
+ * 푸시 알림 body 안에 URL이 있으면 [🔒차단된 링크: 도메인...]로 치환
+ * → 자녀/부모 알림창에서 실수로 URL 클릭하여 피해 입는 것 방지
+ */
+function maskUrlsInPreview(text: string): string {
+  if (!text) return text;
+  return text.replace(URL_REGEX_SERVER, (match) => {
+    const cleaned = match.replace(/[.,!?)\]]+$/g, '');
+    let hint = cleaned.slice(0, 12);
+    try {
+      const u = new URL(cleaned.startsWith('http') ? cleaned : `https://${cleaned}`);
+      hint = u.hostname.slice(0, 12);
+    } catch {}
+    return `[🔒링크차단:${hint}...]`;
+  });
+}
+
 function parseAnalysisResponse(raw: string) {
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('AI 응답에서 JSON을 찾을 수 없습니다');
@@ -127,9 +148,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 알림용 미리보기(40자) — OpenAI 호출 전 추출, DB 미저장, 알림 페이로드에만 사용
-    let messagePreview = smsContent
+    // ⚠️ URL은 [🔒링크차단:...] 으로 마스킹 (자녀가 실수 클릭 방지)
+    const rawPreview = smsContent
       ? smsContent.trim().slice(0, 40) + (smsContent.trim().length > 40 ? '...' : '')
       : '';
+    let messagePreview = maskUrlsInPreview(rawPreview);
 
     // 0. Google Safe Browsing 조회 (URL 있을 때만)
     let safeBrowsingHit = false;
@@ -329,8 +352,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             to: token,
             sound: 'default',
             title: alertMsg.title,
-            body: alertMsg.body,
-            data: { type: alertType, familyId, messageId: savedMessage?.id ?? '' },
+            body: alertMsg.body,           // ← messagePreview는 이미 maskUrlsInPreview 처리됨
+            data: {
+              type: alertType,
+              familyId,
+              messageId: savedMessage?.id ?? '',
+              blockedMessageId: blockedMessageId ?? '',  // ← 알림 탭 시 검토 화면 직접 이동
+            },
             priority: 'high',
             channelId: 'ansimi-alerts',
             badge: 1,

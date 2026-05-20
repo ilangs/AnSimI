@@ -96,3 +96,54 @@ export function extractDomainHint(url: string): string {
     return url.slice(0, 10);
   }
 }
+
+/**
+ * URL을 안전 placeholder로 치환 (실수 클릭 방지)
+ * - 푸시 알림 body, 미리보기 텍스트 등에 사용
+ * - 도메인 일부만 보여주어 사용자가 어떤 URL인지 인지 가능
+ *
+ * 예시:
+ *   "[금감원] 계좌정지 http://bit.ly/scam123"
+ * → "[금감원] 계좌정지 [🔒차단된 링크: bit.ly...]"
+ */
+export function maskUrls(text: string): string {
+  if (!text) return text;
+  return text.replace(URL_REGEX, (match) => {
+    const cleaned = match.replace(/[.,!?)\]]+$/g, '');
+    const hint = extractDomainHint(cleaned);
+    return `[🔒차단된 링크: ${hint}...]`;
+  });
+}
+
+/**
+ * 텍스트를 URL 기준으로 분할 (React Native 컴포넌트에서 분리 렌더링용)
+ *
+ * 사용처:
+ *   - 자녀 검토 카드: URL을 '클릭 불가' 스타일로 표시
+ *   - 부모 차단함 approved 상태: URL을 클릭 가능 링크로 표시
+ */
+export interface TextSegment {
+  type: 'text' | 'url';
+  value: string;
+}
+
+export function splitTextByUrls(text: string): TextSegment[] {
+  if (!text) return [];
+  const segments: TextSegment[] = [];
+  let lastIdx = 0;
+  const regex = new RegExp(URL_REGEX.source, 'gi');
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIdx) {
+      segments.push({ type: 'text', value: text.slice(lastIdx, match.index) });
+    }
+    const cleaned = match[0].replace(/[.,!?)\]]+$/g, '');
+    segments.push({ type: 'url', value: cleaned });
+    lastIdx = match.index + cleaned.length;
+  }
+  if (lastIdx < text.length) {
+    segments.push({ type: 'text', value: text.slice(lastIdx) });
+  }
+  return segments;
+}
