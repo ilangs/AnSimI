@@ -13,6 +13,7 @@ interface FamilyStore {
   joinFamily: (code: string, userId: string) => Promise<Family>;
   removeMember: (familyId: string, targetUserId: string) => Promise<void>;
   generateCode: () => string;
+  reset: () => void;     // 로그아웃 시 상태 초기화
 }
 
 function generateSixDigitCode(): string {
@@ -105,4 +106,8 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     // 서버 상태와 동기화 (백그라운드)
     await get().loadFamily(familyId);
   },
+
+  // 로그아웃 시 호출 — 이전 세션 데이터 잔존 방지
+  // (이전 부모/자녀 멤버 목록이 새 세션에 노출되는 버그 회피)
+  reset: () => set({ family: null, members: [], isLoading: false }),
 }));

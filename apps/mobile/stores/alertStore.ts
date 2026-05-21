@@ -11,6 +11,7 @@ interface AlertStore {
   markAsRead: (alertId: string) => Promise<void>;
   markAllAsRead: (familyId: string) => Promise<void>;
   addAlert: (alert: Alert) => void;
+  reset: () => void;     // 로그아웃 시 상태 초기화
 
   // Realtime 구독
   subscribeToFamily: (familyId: string) => () => void;
@@ -93,4 +94,7 @@ export const useAlertStore = create<AlertStore>((set, get) => ({
       supabase.removeChannel(channel);
     };
   },
+
+  // 로그아웃 시 호출 — 이전 세션 알림 잔존 방지
+  reset: () => set({ alerts: [], unreadCount: 0, isLoading: false }),
 }));

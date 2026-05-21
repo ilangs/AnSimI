@@ -107,6 +107,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
+
+    // 다른 store들도 함께 초기화 (이전 세션 데이터 잔존 방지)
+    // 동적 require로 순환 import 회피
+    try {
+      const { useFamilyStore } = require('./familyStore');
+      useFamilyStore.getState().reset();
+    } catch {}
+    try {
+      const { useAlertStore } = require('./alertStore');
+      useAlertStore.getState().reset();
+    } catch {}
+
     // isInitialized: true 유지 → AuthGate가 user=null을 감지해 로그인 화면으로 이동
     set({ user: null, family: null, isInitialized: true });
   },
