@@ -29,7 +29,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// 5. 동일 이름 패키지가 양쪽에 있을 때 명확한 해결 (workspace 우선)
-config.resolver.disableHierarchicalLookup = true;
+// disableHierarchicalLookup은 의도적으로 미설정 (false)
+// 이유: true 시 Node.js 표준 부모 디렉토리 traversal 차단됨
+//       → react-native 내부의 'promise/setimmediate/es6-extensions' 같은
+//         transitive dependency 해석 실패
+// 트레이드오프: 워크스페이스 내 동일 패키지 중복 시 모호할 수 있으나
+//             nodeModulesPaths 순서로 우선순위 결정됨
 
 module.exports = config;
