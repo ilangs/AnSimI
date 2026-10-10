@@ -12,7 +12,8 @@
     "build:android:prod": "npx eas-cli build --platform android --profile production",
     "build:ios": "npx eas-cli build --platform ios --profile preview",
     "build:ios:prod": "npx eas-cli build --platform ios --profile production",
-    "build:all": "npx eas-cli build --platform all --profile preview"
+    "build:all": "npx eas-cli build --platform all --profile preview",
+    "eas-build-pre-install": "node ./scripts/eas-copy-google-services.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

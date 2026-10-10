@@ -2,8 +2,8 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
-// android/app → android → apps/mobile (Expo 앱 루트)
-def projectRoot = rootDir.getAbsoluteFile().getParentFile().getParentFile().getAbsolutePath()
+// Gradle rootProject(rootDir) = android/ → 부모 = apps/mobile (EAS도 앱 루트만 업로드)
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
 /**
  * This is the configuration block to customize your React Native Android app.
