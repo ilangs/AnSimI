@@ -172,9 +172,29 @@ vercel dev                 # http://localhost:3000 (루트에서)
 
 ## 📦 빌드 & 배포
 
+### EAS CLI (프로젝트 연결 — 최초 1회)
+
+**반드시 `apps/mobile` 기준**으로 실행합니다. 저장소 **루트**에서 `eas build`만 치면 프로젝트를 찾지 못할 수 있습니다.
+
+```bash
+npm run eas:login      # Expo 계정 로그인 (브라우저)
+npm run eas:whoami     # 로그인 계정 확인
+npm run eas:init       # EAS 프로젝트 생성·연결 → app.config.js에 projectId 기록
+```
+
+| 오류 | 원인 | 해결 |
+|------|------|------|
+| EAS 프로젝트를 찾을 수 없음 | `app.config`의 projectId가 내 계정에 없음 / `owner` 불일치 | `eas:init`으로 **새로 연결** (구 UUID 삭제됨) |
+| 권한 없음 | 다른 Expo 계정으로 로그인 | `eas:whoami` 후 본인 계정으로 `eas:login` |
+| `@ilangs/ansimi` 접근 불가 | `owner: ilangs` 고정 | `app.config`는 이제 `EXPO_OWNER` 없으면 **로그인 계정** 사용 |
+
+`eas init` 완료 후 `extra.eas.projectId` UUID를 `.env`의 `EXPO_PUBLIC_PROJECT_ID`에도 넣으면 푸시 토큰 발급에 사용됩니다.
+
+**EAS Environment variables (preview/production):** `EXPO_PUBLIC_*`, API URL, Supabase 키. Android FCM은 **`GOOGLE_SERVICES_JSON`** 를 **Secret file** 타입으로 등록 (`app.config.js`의 `googleServicesFile`이 빌드 시 해당 경로 사용). 저장소에는 `google-services.json`을 커밋하지 않습니다.
+
 ### 모바일 앱 빌드 (APK / AAB)
 
-루트에서 한 줄 명령:
+루트에서 한 줄 명령 (`apps/mobile` + `eas-cli` 호출):
 
 ```bash
 npm run build:android          # APK (사이드로드 설치용, preview 프로파일)

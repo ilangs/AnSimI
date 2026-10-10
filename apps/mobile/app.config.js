@@ -70,8 +70,12 @@ module.exports = {
     },
     extra: {
       router: { origin: false },
-      eas: { projectId: 'a63237c0-8f28-48c0-9437-d95e1d14034a' },
+      // @ilangs/ansimi — expo.dev에서 ilangs 계정으로 새 프로젝트 생성 후 ID 입력      
+      eas: {
+        projectId: 'a63237c0-8f28-48c0-9437-d95e1d14034a' 
+      },
     },
-    owner: 'ilangs',
+    // @ilangs 개인 계정 — ansimi / evida는 각각 별도 EAS 프로젝트
+    owner: process.env.EXPO_OWNER ?? 'ilangs',
   },
 };

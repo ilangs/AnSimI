@@ -15,7 +15,7 @@ export function useAnalyze() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<AnalyzeResponse, Error, string>({
-    mutationFn: (message: string) => {
+    mutationFn: async (message: string) => {
       if (!user?.id) {
         throw new Error('로그인 후 이용할 수 있어요');
       }

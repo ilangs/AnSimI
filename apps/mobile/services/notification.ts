@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { NotifyRequest } from '@/types';
 import { getApiAuthHeaders } from '@/services/apiAuth';
@@ -45,9 +46,14 @@ export async function registerForPushNotifications(): Promise<string | null> {
     });
   }
 
-  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
+  const projectId =
+    process.env.EXPO_PUBLIC_PROJECT_ID ??
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
   if (!projectId) {
-    console.warn('EXPO_PUBLIC_PROJECT_ID가 설정되지 않아 FCM 토큰을 가져올 수 없습니다');
+    console.warn(
+      'EAS projectId가 없습니다. apps/mobile에서 npx eas-cli init 실행 후 다시 빌드하세요.'
+    );
     return null;
   }
 

@@ -8,10 +8,13 @@
   ],
   "scripts": {
     "mobile": "cd apps/mobile && npx expo start",
-    "build:android": "cd apps/mobile && eas build --platform android --profile preview",
-    "build:android:prod": "cd apps/mobile && eas build --platform android --profile production",
-    "build:ios": "cd apps/mobile && eas build --platform ios --profile preview",
-    "build:all": "cd apps/mobile && eas build --platform all --profile preview",
+    "eas:login": "cd apps/mobile && npx eas-cli login",
+    "eas:init": "cd apps/mobile && npx eas-cli init",
+    "eas:whoami": "cd apps/mobile && npx eas-cli whoami",
+    "build:android": "cd apps/mobile && npx eas-cli build --platform android --profile preview",
+    "build:android:prod": "cd apps/mobile && npx eas-cli build --platform android --profile production",
+    "build:ios": "cd apps/mobile && npx eas-cli build --platform ios --profile preview",
+    "build:all": "cd apps/mobile && npx eas-cli build --platform all --profile preview",
     "api:dev": "vercel dev",
     "typecheck": "tsc --noEmit -p tsconfig.json && cd apps/mobile && tsc --noEmit",
     "db:migrate": "supabase db push"
