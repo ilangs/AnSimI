@@ -190,7 +190,9 @@ npm run eas:init       # EAS 프로젝트 생성·연결 → app.config.js에 pr
 
 `eas init` 완료 후 `extra.eas.projectId` UUID를 `.env`의 `EXPO_PUBLIC_PROJECT_ID`에도 넣으면 푸시 토큰 발급에 사용됩니다.
 
-**EAS Environment variables (preview/production):** `EXPO_PUBLIC_*`, API URL, Supabase 키. Android FCM은 **`GOOGLE_SERVICES_JSON`** 를 **Secret file** 타입으로 등록 (`app.config.js`의 `googleServicesFile`이 빌드 시 해당 경로 사용). 저장소에는 `google-services.json`을 커밋하지 않습니다.
+**EAS Environment variables (preview/production):** `EXPO_PUBLIC_*`, API URL, Supabase 키. Android FCM은 **`GOOGLE_SERVICES_JSON`** 를 **Secret file** 타입으로 등록. `android/` 폴더를 커밋한 bare 빌드는 [`eas-build-pre-install.sh`](apps/mobile/eas-build-pre-install.sh)가 Secret 파일을 `android/app/google-services.json`으로 복사합니다. 저장소에는 `google-services.json`을 커밋하지 않습니다.
+
+**GitHub에서 빌드:** Base directory = **`apps/mobile`**. Profile **`preview`**, Environment **`preview`**, Platform **Android**.
 
 ### 모바일 앱 빌드 (APK / AAB)
 
