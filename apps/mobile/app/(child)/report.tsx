@@ -14,12 +14,16 @@ import { formatAmount } from '@/utils/formatter';
 import WeeklyChart from '@/components/child/WeeklyChart';
 import InsightCard from '@/components/child/InsightCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { getApiAuthHeaders } from '@/services/apiAuth';
 
 type Period = 'week' | 'month';
 
 async function fetchReport(familyId: string, period: Period) {
   const API_URL = process.env.EXPO_PUBLIC_API_URL!;
-  const res = await fetch(`${API_URL}/report?familyId=${familyId}&period=${period}`);
+  const headers = await getApiAuthHeaders();
+  const res = await fetch(`${API_URL}/report?familyId=${familyId}&period=${period}`, {
+    headers,
+  });
   if (!res.ok) throw new Error('리포트 로드 실패');
   return res.json();
 }

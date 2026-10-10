@@ -72,6 +72,7 @@ class SmsNotificationListenerService : NotificationListenerService() {
         val userId  = prefs.getString("userId",  null) ?: return
         val familyId = prefs.getString("familyId", null) ?: return
         val apiUrl  = prefs.getString("apiUrl",  null) ?: return
+        val accessToken = prefs.getString("accessToken", null) ?: return
 
         val extras = sbn.notification.extras
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim() ?: ""
@@ -92,7 +93,7 @@ class SmsNotificationListenerService : NotificationListenerService() {
 
         Thread {
             try {
-                val result = callAnalyzeApi(apiUrl, smsContent, userId, familyId, senderTitle)
+                val result = callAnalyzeApi(apiUrl, accessToken, smsContent, userId, familyId, senderTitle)
                 val score = result.optInt("score", 0)
                 when {
                     // 위험 51+ : 원본 알림 가리고 차단 알림으로 교체
@@ -106,11 +107,17 @@ class SmsNotificationListenerService : NotificationListenerService() {
     }
 
     private fun callAnalyzeApi(
-        apiUrl: String, message: String, userId: String, familyId: String, senderTitle: String
+        apiUrl: String,
+        accessToken: String,
+        message: String,
+        userId: String,
+        familyId: String,
+        senderTitle: String
     ): JSONObject {
         val conn = (URL("\$apiUrl/analyze").openConnection() as HttpURLConnection).also {
             it.requestMethod = "POST"
             it.setRequestProperty("Content-Type", "application/json")
+            it.setRequestProperty("Authorization", "Bearer \$accessToken")
             it.doOutput = true
             it.connectTimeout = 15_000
             it.readTimeout    = 45_000
@@ -323,13 +330,20 @@ class AnsimiModule(private val reactContext: ReactApplicationContext)
     override fun getName(): String = "AnsimiModule"
 
     @ReactMethod
-    fun saveCredentials(userId: String, familyId: String, apiUrl: String, promise: Promise) {
+    fun saveCredentials(
+        userId: String,
+        familyId: String,
+        apiUrl: String,
+        accessToken: String,
+        promise: Promise
+    ) {
         try {
             reactContext.getSharedPreferences("ansimi_prefs", Context.MODE_PRIVATE)
                 .edit()
                 .putString("userId",   userId)
                 .putString("familyId", familyId)
                 .putString("apiUrl",   apiUrl)
+                .putString("accessToken", accessToken)
                 .apply()
             promise.resolve(true)
         } catch (e: Exception) { promise.reject("ERR", e.message) }

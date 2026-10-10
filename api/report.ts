@@ -1,12 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import { requireAuth, requireFamilyMember } from './lib/auth';
+import { getSupabaseAdmin } from './lib/supabaseAdmin';
 
-// 실전 배포 시 OpenAI → Anthropic 교체 (analyze.ts와 동일)
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = getSupabaseAdmin();
 
 const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
@@ -17,10 +14,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const auth = await requireAuth(req);
+  if ('error' in auth) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
   const { familyId, period = 'week' } = req.query;
 
   if (!familyId || typeof familyId !== 'string') {
     return res.status(400).json({ error: 'familyId가 필요합니다' });
+  }
+
+  if (!(await requireFamilyMember(auth.userId, familyId))) {
+    return res.status(403).json({ error: '가족 구성원만 리포트를 조회할 수 있습니다' });
   }
 
   // 기간 계산

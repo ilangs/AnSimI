@@ -1,4 +1,5 @@
 import { AnalyzeRequest, AnalyzeResponse } from '@/types';
+import { getApiAuthHeaders } from '@/services/apiAuth';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL!;
 
@@ -37,11 +38,12 @@ export async function analyzeMessage(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      const headers = await getApiAuthHeaders();
       const res = await fetchWithTimeout(
         `${API_URL}/analyze`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(req),
         },
         FETCH_TIMEOUT_MS

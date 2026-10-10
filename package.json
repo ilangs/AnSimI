@@ -12,7 +12,8 @@
     "build:android:prod": "cd apps/mobile && eas build --platform android --profile production",
     "build:ios": "cd apps/mobile && eas build --platform ios --profile preview",
     "build:all": "cd apps/mobile && eas build --platform all --profile preview",
-    "api:dev": "cd apps/api && vercel dev",
+    "api:dev": "vercel dev",
+    "typecheck": "tsc --noEmit -p tsconfig.json && cd apps/mobile && tsc --noEmit",
     "db:migrate": "supabase db push"
   },
   "dependencies": {

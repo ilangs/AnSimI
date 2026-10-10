@@ -38,6 +38,7 @@ class SmsNotificationListenerService : NotificationListenerService() {
         val userId  = prefs.getString("userId",  null) ?: return
         val familyId = prefs.getString("familyId", null) ?: return
         val apiUrl  = prefs.getString("apiUrl",  null) ?: return
+        val accessToken = prefs.getString("accessToken", null) ?: return
 
         val extras = sbn.notification.extras
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim() ?: ""
@@ -55,7 +56,7 @@ class SmsNotificationListenerService : NotificationListenerService() {
 
         Thread {
             try {
-                val result = callAnalyzeApi(apiUrl, smsContent, userId, familyId)
+                val result = callAnalyzeApi(apiUrl, accessToken, smsContent, userId, familyId)
                 val score = result.optInt("score", 0)
                 if (score >= 26) showResultNotification(result, smsContent)
             } catch (_: Exception) {}
@@ -63,19 +64,25 @@ class SmsNotificationListenerService : NotificationListenerService() {
     }
 
     private fun callAnalyzeApi(
-        apiUrl: String, message: String, userId: String, familyId: String
+        apiUrl: String,
+        accessToken: String,
+        message: String,
+        userId: String,
+        familyId: String
     ): JSONObject {
         val conn = (URL("$apiUrl/analyze").openConnection() as HttpURLConnection).also {
             it.requestMethod = "POST"
             it.setRequestProperty("Content-Type", "application/json")
+            it.setRequestProperty("Authorization", "Bearer $accessToken")
             it.doOutput = true
             it.connectTimeout = 15_000
-            it.readTimeout    = 30_000
+            it.readTimeout    = 45_000
         }
         val body = JSONObject().apply {
             put("message",  message)
             put("userId",   userId)
             put("familyId", familyId)
+            put("source",   "auto")
         }.toString()
         OutputStreamWriter(conn.outputStream).use { it.write(body) }
         val code = conn.responseCode

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { requireAuth, requireFamilyMember } from './lib/auth';
+import { getSupabaseAdmin } from './lib/supabaseAdmin';
 
 // ─────────────────────────────────────────────────────────────
 // 푸시 알림 발송: Expo Push API 사용
@@ -8,10 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 // - Firebase Admin SDK 불필요 → Vercel 환경변수 단순화
 // ─────────────────────────────────────────────────────────────
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = getSupabaseAdmin();
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -53,6 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const auth = await requireAuth(req);
+  if ('error' in auth) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
   const {
     familyId,
     alertType,
@@ -84,6 +87,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!ALERT_MESSAGES[alertType]) {
     return res.status(400).json({ error: '유효하지 않은 alertType' });
+  }
+
+  if (!(await requireFamilyMember(auth.userId, familyId))) {
+    return res.status(403).json({ error: '가족 구성원만 알림을 보낼 수 있습니다' });
+  }
+
+  const effectiveSender = sosUserId ?? auth.userId;
+  if (sosUserId && sosUserId !== auth.userId) {
+    return res.status(403).json({ error: 'SOS 발신자 정보가 일치하지 않습니다' });
   }
 
   // 링크 알림 방향: 부모 폰 감지 → 자녀 폰 수신 (기본 child)
@@ -119,11 +131,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const tokens: string[] = children.map((u) => u.fcm_token).filter(Boolean);
 
   // 2. alerts 테이블 저장
-  const senderId = sosUserId ?? (memberRows?.[0] as any)?.user_id;
-  if (senderId) {
+  if (effectiveSender) {
     const { error: alertErr } = await supabase.from('alerts').insert({
       family_id: familyId,
-      sender_id: senderId,
+      sender_id: effectiveSender,
       message_id: messageId ?? null,
       type: alertType,
     });

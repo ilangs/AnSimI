@@ -4,6 +4,8 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import { useAuthStore } from '@/stores/authStore';
 import { extractUrls, extractDomainHint } from '@/utils/linkUtils';
 import { supabase } from '@/services/supabase';
+import { getApiAuthHeaders } from '@/services/apiAuth';
+import { assertCanAnalyze } from '@/services/familyGate';
 
 const { AnsimiModule } = NativeModules;
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -31,7 +33,14 @@ export function useAutoAnalyze() {
   useEffect(() => {
     if (Platform.OS !== 'android' || !AnsimiModule) return;
     if (user?.id && family?.id) {
-      AnsimiModule.saveCredentials(user.id, family.id, API_URL).catch(() => {});
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        AnsimiModule.saveCredentials(
+          user.id,
+          family.id,
+          API_URL,
+          session?.access_token ?? ''
+        ).catch(() => {});
+      });
     } else {
       AnsimiModule.clearCredentials().catch(() => {});
     }
@@ -56,6 +65,17 @@ export function useAutoAnalyze() {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         checkPermission();
+        const { user: u, family: f } = useAuthStore.getState();
+        if (u?.id && f?.id && AnsimiModule) {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            AnsimiModule.saveCredentials(
+              u.id,
+              f.id,
+              API_URL,
+              session?.access_token ?? ''
+            ).catch(() => {});
+          });
+        }
       }
     });
     return () => sub.remove();
@@ -94,14 +114,21 @@ export function useAutoAnalyze() {
     ) => {
       if (!user?.id || !family?.id || user.role !== 'parent') return;
 
+      try {
+        await assertCanAnalyze(user.id, family.id, user.role);
+      } catch {
+        return;
+      }
+
       const urls = extractUrls(smsText);
       if (urls.length === 0) return; // URL 없으면 기존 흐름 그대로
 
       let analysis: any = null;
       try {
+        const headers = await getApiAuthHeaders();
         const res = await fetch(`${API_URL}/analyze`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             message: smsText,
             userId: user.id,
@@ -163,9 +190,10 @@ export function useAutoAnalyze() {
 
       // 3. 자녀 폰에 link_danger 알림 발송
       try {
+        const notifyHeaders = await getApiAuthHeaders();
         await fetch(`${API_URL}/notify`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: notifyHeaders,
           body: JSON.stringify({
             familyId: family.id,
             alertType: riskLevel === 'high' ? 'link_high_danger' : 'link_danger',

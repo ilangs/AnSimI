@@ -27,7 +27,7 @@ import { useAutoAnalyze } from '@/hooks/useAutoAnalyze';
 // true  = 결제 UI 숨김, "무료 운영 중" 안내 배너 표시
 // false = 정상 구독 결제 동작 (출시 시점에 변경)
 // ─────────────────────────────────────────────────────────
-const PROTOTYPE_FREE_MODE = true;
+const PROTOTYPE_FREE_MODE = process.env.EXPO_PUBLIC_PROTOTYPE_FREE_MODE === 'true';
 
 export default function ChildSettingsScreen() {
   const router = useRouter();

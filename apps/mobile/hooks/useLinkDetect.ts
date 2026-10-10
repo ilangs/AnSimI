@@ -4,6 +4,7 @@
 import { useCallback, useState } from 'react';
 import { extractUrls } from '@/utils/linkUtils';
 import { useAuthStore } from '@/stores/authStore';
+import { getApiAuthHeaders } from '@/services/apiAuth';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
@@ -42,9 +43,10 @@ export function useLinkDetect(): UseLinkDetectReturn {
     async (message: string, urls: string[]): Promise<AnalysisResponse | null> => {
       if (!user?.id || !family?.id || !API_URL) return null;
       try {
+        const headers = await getApiAuthHeaders();
         const res = await fetch(`${API_URL}/analyze`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             message,
             userId: user.id,

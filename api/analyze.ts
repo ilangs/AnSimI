@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import OpenAI from 'openai';
-import { createClient } from '@supabase/supabase-js';
+import {
+  requireAuth,
+  requireFamilyMember,
+  requireFamilyConsentComplete,
+  requireActiveSubscription,
+} from './lib/auth';
+import { getSupabaseAdmin } from './lib/supabaseAdmin';
+import { checkAnalyzeRateLimit } from './lib/rateLimit';
 
 // ─────────────────────────────────────────────────────────────
 // AI 제공자: OpenAI (개발·테스트 단계)
@@ -16,10 +23,7 @@ const ai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // 서버사이드 전용
-);
+const supabase = getSupabaseAdmin();
 
 const ANALYSIS_SYSTEM_PROMPT = `
 당신은 대한민국 보이스피싱·스미싱 전문 분석 AI입니다.
@@ -117,6 +121,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const auth = await requireAuth(req);
+  if ('error' in auth) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
   const { message, userId, familyId, urls: rawUrls, source, senderNumber } = req.body as {
     message: string;
     userId: string;
@@ -128,6 +137,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!message || typeof message !== 'string' || !userId || !familyId) {
     return res.status(400).json({ error: '필수 파라미터가 누락되었습니다' });
+  }
+
+  if (userId !== auth.userId) {
+    return res.status(403).json({ error: '요청 사용자 정보가 일치하지 않습니다' });
+  }
+
+  if (!(await requireFamilyMember(auth.userId, familyId))) {
+    return res.status(403).json({ error: '가족 구성원만 분석할 수 있습니다' });
+  }
+
+  if (!(await requireFamilyConsentComplete(familyId))) {
+    return res.status(403).json({
+      error: '부모·자녀 동의가 완료된 후 분석을 사용할 수 있습니다',
+    });
+  }
+
+  if (!(await requireActiveSubscription(auth.userId, familyId))) {
+    return res.status(402).json({ error: '구독이 필요합니다' });
+  }
+
+  const rate = checkAnalyzeRateLimit(auth.userId, req);
+  if (!rate.ok) {
+    res.setHeader('Retry-After', String(rate.retryAfterSec ?? 60));
+    return res.status(429).json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' });
   }
 
   // 메모리 내에서만 사용 (Zero-Storage)
@@ -230,7 +263,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error('OpenAI API 오류:', errMsg);
       return res.status(503).json({
-        error: `분석 서버 오류: ${errMsg.slice(0, 120)}`,
+        error: '분석 서버가 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.',
       });
     }
 

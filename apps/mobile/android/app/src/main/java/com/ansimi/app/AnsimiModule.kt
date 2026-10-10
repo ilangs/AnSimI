@@ -10,13 +10,20 @@ class AnsimiModule(private val reactContext: ReactApplicationContext)
     override fun getName(): String = "AnsimiModule"
 
     @ReactMethod
-    fun saveCredentials(userId: String, familyId: String, apiUrl: String, promise: Promise) {
+    fun saveCredentials(
+        userId: String,
+        familyId: String,
+        apiUrl: String,
+        accessToken: String,
+        promise: Promise
+    ) {
         try {
             reactContext.getSharedPreferences("ansimi_prefs", Context.MODE_PRIVATE)
                 .edit()
                 .putString("userId",   userId)
                 .putString("familyId", familyId)
                 .putString("apiUrl",   apiUrl)
+                .putString("accessToken", accessToken)
                 .apply()
             promise.resolve(true)
         } catch (e: Exception) { promise.reject("ERR", e.message) }

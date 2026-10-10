@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import * as FileSystem from 'expo-file-system';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { useAuthStore } from '@/stores/authStore';
+import { getApiAuthHeaders } from '@/services/apiAuth';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
@@ -65,9 +66,10 @@ export function useOcrAnalysis(): UseOcrAnalysisReturn {
         // 2. AI 재분석 요청 (텍스트만 — 이미지 외부 전송 없음)
         if (extractedText.trim().length > 0 && user?.id && family?.id && API_URL) {
           try {
+            const headers = await getApiAuthHeaders();
             const res = await fetch(`${API_URL}/analyze`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({
                 message: extractedText,
                 userId: user.id,

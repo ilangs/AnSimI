@@ -106,7 +106,8 @@ npm install -g eas-cli vercel
 | `GOOGLE_SAFE_BROWSING_API_KEY` | Google Cloud Console |
 | `TOSS_SECRET_KEY` | 토스페이먼츠 개발자센터 |
 | `EXPO_PUBLIC_TOSS_CLIENT_KEY` | 토스페이먼츠 개발자센터 |
-| `CRON_SECRET` | `openssl rand -base64 32` 로 생성 |
+| `CRON_SECRET` | `openssl rand -base64 32` 로 생성 (Vercel Cron Bearer) |
+| `SUBSCRIPTION_REQUIRED` | `true` = 분석 API 구독 필수 / 베타는 `false` 또는 미설정 |
 | `VERCEL_LOG_LEVEL` | `error` (로그 최소화) |
 
 ### 3. Supabase 마이그레이션
@@ -122,7 +123,20 @@ supabase/migrations/005_rls_verify.sql           ← RLS 강화 + subscriptions
 supabase/migrations/006_zero_storage.sql         ← content NOT NULL 해제 + 자동삭제
 supabase/migrations/007_consent_objections.sql   ← consent_logs + objections
 supabase/migrations/008_remove_family_member.sql ← RPC remove_family_member ⭐
+supabase/migrations/009_blocked_messages.sql     ← 차단함 (24h 원문)
+supabase/migrations/010_commercial_readiness.sql ← auth 트리거·가족 RPC·동의 INSERT·alerts 타입 ⭐
+supabase/migrations/011_consent_rpc_grants.sql   ← 010 4~6 보완 + is_family_consent_complete GRANT
 supabase/migrations/20260510_link_alerts.sql     ← 링크 차단 알림
+```
+
+### 클로즈드 베타 배포 순서 (요약)
+
+1. Supabase: `010` + `011` 적용 후 RPC 반환 타입 `families` 확인
+2. Vercel: `SUPABASE_ANON_KEY`, `CRON_SECRET`, `SUBSCRIPTION_REQUIRED=false`(베타) 배포
+3. `GET /api/health` → `status: ok`, `missingRequired: []` 확인
+4. 앱 `.env`: `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_PROTOTYPE_FREE_MODE=true`(무료 베타)
+5. EAS: `assets`·`google-services.json` 준비 후 Android 빌드
+6. 시나리오: 가입(자녀 동의) → 가족 코드 → 부모 동의 → 수동 분석 → 푸시
 ```
 
 또는 CLI:

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { analyzeMessage } from '@/services/analyze';
+import { assertCanAnalyze } from '@/services/familyGate';
 import { useAuthStore } from '@/stores/authStore';
 import { AnalyzeResponse } from '@/types';
 
@@ -24,6 +25,7 @@ export function useAnalyze() {
       if (!message.trim()) {
         throw new Error('분석할 문자 내용을 입력해주세요');
       }
+      await assertCanAnalyze(user.id, family.id, user.role);
       return analyzeMessage({
         message: message.trim(),
         userId: user.id,

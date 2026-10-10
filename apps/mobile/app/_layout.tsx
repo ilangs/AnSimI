@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, LogBox } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/services/supabase';
+import { hasUserConsent } from '@/services/familyGate';
 import { registerForPushNotifications } from '@/services/notification';
 import { useShareIntent } from '@/hooks/useShareIntent';
 import { useAutoAnalyze } from '@/hooks/useAutoAnalyze';
@@ -38,6 +39,7 @@ function AuthGate() {
   useAutoAnalyze();
   const segments = useSegments();
   const router = useRouter();
+  const [parentConsentOk, setParentConsentOk] = useState<boolean | null>(null);
 
   useEffect(() => { initialize(); }, []);
 
@@ -46,25 +48,45 @@ function AuthGate() {
   }, [isInitialized]);
 
   useEffect(() => {
+    if (!user?.id || user.role !== 'parent') {
+      setParentConsentOk(null);
+      return;
+    }
+    hasUserConsent(user.id).then(setParentConsentOk);
+  }, [user?.id, user?.role, family?.id, segments.join('/')]);
+
+  useEffect(() => {
     if (!isInitialized) return;
     const inAuthGroup = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
+    const onParentConsent =
+      inOnboarding && (segments as string[])[1] === 'parent-consent';
+
     if (!user) {
       if (!inAuthGroup) router.replace('/auth/login');
     } else {
       if (inAuthGroup) {
-        // 이미 가족 연결 완료된 경우 → 역할별 메인 화면으로 바로 이동 (role/connect 재진입 방지)
         if (family) {
-          router.replace(user.role === 'parent' ? '/(parent)/' : '/(child)/');
+          if (user.role === 'parent' && parentConsentOk === false) {
+            router.replace('/onboarding/parent-consent');
+          } else {
+            router.replace(user.role === 'parent' ? '/(parent)/' : '/(child)/');
+          }
         } else {
           router.replace('/onboarding/role');
         }
       } else if (!family && !inOnboarding) {
-        // 가족 미연결 상태면 온보딩 connect로 이동
         router.replace('/onboarding/connect');
+      } else if (
+        user.role === 'parent' &&
+        family &&
+        parentConsentOk === false &&
+        !onParentConsent
+      ) {
+        router.replace('/onboarding/parent-consent');
       }
     }
-  }, [user, family, isInitialized, segments]);
+  }, [user, family, isInitialized, segments, parentConsentOk]);
 
   useEffect(() => {
     if (!user) return;

@@ -7,6 +7,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '@/services/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
+import { getApiAuthHeaders } from '@/services/apiAuth';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 const KISA_REPORT_URL = 'https://www.boho.or.kr';
 
@@ -170,9 +172,10 @@ export function useLinkApproval(): UseLinkApprovalReturn {
       // 부모 폰에 FCM 신고 알림 전송 (자녀 → 부모 방향)
       if (target && family?.id && API_URL) {
         try {
+          const headers = await getApiAuthHeaders();
           await fetch(`${API_URL}/notify`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
               familyId: family.id,
               alertType: 'link_reported',

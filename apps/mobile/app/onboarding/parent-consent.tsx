@@ -103,7 +103,7 @@ export default function ParentConsentScreen() {
         <View style={styles.noticeBox}>
           <Text style={styles.noticeTitle}>⚠️ 꼭 알아두세요</Text>
           <NoticeItem text="AI가 귀하의 문자를 분석합니다." />
-          <NoticeItem text="분석 후 문자 내용은 즉시 삭제되며 저장되지 않습니다." />
+          <NoticeItem text="분석 후 문자 원문은 서버에 저장하지 않습니다. (위험 문자 차단함은 최대 24시간만 보관 후 삭제)" />
           <NoticeItem text="자녀에게는 위험 점수와 요약만 전달됩니다. (문자 내용은 공유 안 됨)" />
           <NoticeItem text="분석을 위해 문자가 미국 AI 서버로 전송됩니다. (분석 즉시 삭제됩니다)" />
         </View>

@@ -1,15 +1,23 @@
 {
   "version": 2,
+  "crons": [
+    { "path": "/api/cron/billing", "schedule": "0 0 1 * *" },
+    { "path": "/api/cron/cleanup", "schedule": "0 15 * * *" }
+  ],
   "functions": {
     "api/analyze.ts": { "maxDuration": 60 },
     "api/notify.ts":  { "maxDuration": 15 },
     "api/report.ts":  { "maxDuration": 30 },
     "api/payment.ts": { "maxDuration": 15 },
     "api/health.ts":  { "maxDuration": 5  },
-    "api/cron/billing.ts": { "maxDuration": 60 }
+    "api/cron/billing.ts": { "maxDuration": 60 },
+    "api/cron/cleanup.ts": { "maxDuration": 30 },
+    "api/paymentCallback.ts": { "maxDuration": 10 }
   },
   "routes": [
     { "src": "/privacy",         "dest": "/public/privacy.html" },
+    { "src": "/payment/callback", "dest": "/api/paymentCallback.ts" },
+    { "src": "/payment/fail",     "dest": "/api/paymentCallback.ts" },
     { "src": "/api/analyze",     "dest": "/api/analyze.ts"  },
     { "src": "/api/notify",      "dest": "/api/notify.ts"   },
     { "src": "/api/report",      "dest": "/api/report.ts"   },

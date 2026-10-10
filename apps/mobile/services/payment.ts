@@ -10,9 +10,11 @@
  * SDK 설치: npm install @tosspayments/tosspayments-sdk (또는 WebView 방식)
  */
 
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
+import { getApiAuthHeaders, getWebOriginFromApiUrl } from '@/services/apiAuth';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL!;
+const WEB_ORIGIN = getWebOriginFromApiUrl();
 const TOSS_CLIENT_KEY = process.env.EXPO_PUBLIC_TOSS_CLIENT_KEY ?? 'test_ck_placeholder';
 
 export const SUBSCRIPTION_PRICE = 2900;
@@ -36,8 +38,8 @@ export async function startSubscription(userId: string, userEmail?: string): Pro
   const billingAuthUrl =
     `https://api.tosspayments.com/v1/billing/authorizations/card` +
     `?customerKey=${encodeURIComponent(customerKey)}` +
-    `&successUrl=${encodeURIComponent(`${API_URL}/payment/callback?userId=${userId}`)}` +
-    `&failUrl=${encodeURIComponent(`${API_URL}/payment/fail`)}`;
+    `&successUrl=${encodeURIComponent(`${WEB_ORIGIN}/payment/callback?userId=${userId}&customerKey=${encodeURIComponent(customerKey)}`)}` +
+    `&failUrl=${encodeURIComponent(`${WEB_ORIGIN}/payment/fail`)}`;
 
   // 실제 구현: WebView 모달 또는 InAppBrowser로 오픈
   // 현재는 외부 브라우저로 리다이렉트 (MVP 대응)
@@ -62,9 +64,10 @@ export async function confirmPayment(
   userId: string
 ): Promise<PaymentResult> {
   try {
+    const headers = await getApiAuthHeaders();
     const res = await fetch(`${API_URL}/payment?action=confirm`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ authKey, customerKey, userId }),
     });
 
@@ -91,9 +94,10 @@ export async function cancelSubscription(
   paymentKey?: string
 ): Promise<boolean> {
   try {
+    const headers = await getApiAuthHeaders();
     const res = await fetch(`${API_URL}/payment?action=cancel`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         userId,
         paymentKey,

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/services/supabase';
 import { Colors } from '@/constants/colors';
 import { UserRole } from '@/types';
 
@@ -59,6 +60,28 @@ export default function SignupScreen() {
 
     try {
       await signUp(email.trim(), password, role, name.trim());
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
+      if (uid) {
+        const { error: consentErr } = await supabase.from('consent_logs').insert({
+          user_id: uid,
+          user_role: role,
+          version: 'v2.0',
+          items: {
+            collect: consentPrivacy,
+            overseas: consentOverseas,
+            terms: consentTerms,
+            ai_limit: consentAiLimit,
+            self_decision: consentSelfDecision,
+          },
+          device_info: { platform: Platform.OS, version: Platform.Version },
+        });
+        if (consentErr) {
+          console.error('consent_logs 저장 오류:', consentErr);
+        }
+      }
+
       router.replace('/onboarding/role');
     } catch (err: any) {
       Alert.alert('회원가입 실패', err.message ?? '잠시 후 다시 시도해주세요');

@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { NotifyRequest } from '@/types';
+import { getApiAuthHeaders } from '@/services/apiAuth';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL!;
 
@@ -55,9 +56,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
 }
 
 export async function sendNotification(req: NotifyRequest): Promise<void> {
+  const headers = await getApiAuthHeaders();
   await fetch(`${API_URL}/notify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(req),
   });
 }
